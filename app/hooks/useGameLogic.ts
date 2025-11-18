@@ -1,0 +1,375 @@
+'use client';
+
+import { useState, useCallback, useEffect, useRef } from 'react';
+import {
+  GameState,
+  CurrentPiece,
+  TetrominoType,
+  BOARD_WIDTH,
+} from '../types/game.types';
+import { TETROMINOS, getRandomTetromino, rotateShape } from '../utils/tetrominos';
+import {
+  createEmptyBoard,
+  isValidPosition,
+  mergePieceToBoard,
+  clearLines,
+  calculateScore,
+  calculateLevel,
+  calculateSpeed,
+  getStartPosition,
+  isGameOver,
+  tryRotate,
+} from '../utils/gameHelpers';
+
+const STORAGE_KEY = 'tetris-high-score';
+
+// Get high score from localStorage
+const getStoredHighScore = (): number => {
+  if (typeof window === 'undefined') return 0;
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored ? parseInt(stored, 10) : 0;
+};
+
+// Save high score to localStorage
+const saveHighScore = (score: number): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEY, score.toString());
+  }
+};
+
+// Create initial game state
+const createInitialState = (): GameState => ({
+  board: createEmptyBoard(),
+  currentPiece: null,
+  nextPiece: getRandomTetromino(),
+  score: 0,
+  lines: 0,
+  level: 1,
+  gameOver: false,
+  isPaused: false,
+  isPlaying: false,
+  highScore: 0,
+});
+
+// Create a new piece from type
+const createPiece = (type: TetrominoType): CurrentPiece => {
+  const tetromino = TETROMINOS[type];
+  return {
+    type,
+    shape: tetromino.shape.map(row => [...row]),
+    color: tetromino.color,
+    position: getStartPosition(tetromino.shape),
+    rotation: 0,
+  };
+};
+
+export const useGameLogic = () => {
+  const [gameState, setGameState] = useState<GameState>(createInitialState);
+  const gameLoopRef = useRef<number | null>(null);
+  const lastTickRef = useRef<number>(0);
+
+  // Load high score on mount
+  useEffect(() => {
+    const highScore = getStoredHighScore();
+    setGameState(prev => ({ ...prev, highScore }));
+  }, []);
+
+  // Spawn a new piece
+  const spawnPiece = useCallback(() => {
+    setGameState(prev => {
+      const newPiece = createPiece(prev.nextPiece);
+      const nextPiece = getRandomTetromino();
+
+      // Check if game is over
+      if (isGameOver(prev.board, newPiece.shape)) {
+        const newHighScore = Math.max(prev.score, prev.highScore);
+        if (prev.score > prev.highScore) {
+          saveHighScore(prev.score);
+        }
+        return {
+          ...prev,
+          gameOver: true,
+          isPlaying: false,
+          currentPiece: null,
+          highScore: newHighScore,
+        };
+      }
+
+      return {
+        ...prev,
+        currentPiece: newPiece,
+        nextPiece,
+      };
+    });
+  }, []);
+
+  // Lock the current piece and check for lines
+  const lockPiece = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.currentPiece) return prev;
+
+      // Merge piece to board
+      let newBoard = mergePieceToBoard(prev.board, prev.currentPiece);
+
+      // Clear completed lines
+      const { newBoard: clearedBoard, linesCleared } = clearLines(newBoard);
+
+      // Calculate new score and level
+      const newLines = prev.lines + linesCleared;
+      const newLevel = calculateLevel(newLines);
+      const scoreGain = calculateScore(linesCleared, prev.level);
+      const newScore = prev.score + scoreGain;
+
+      return {
+        ...prev,
+        board: clearedBoard,
+        currentPiece: null,
+        score: newScore,
+        lines: newLines,
+        level: newLevel,
+      };
+    });
+
+    // Spawn new piece after locking
+    setTimeout(spawnPiece, 0);
+  }, [spawnPiece]);
+
+  // Move piece down
+  const moveDown = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.currentPiece || prev.isPaused || !prev.isPlaying) return prev;
+
+      const newPosition = {
+        x: prev.currentPiece.position.x,
+        y: prev.currentPiece.position.y + 1,
+      };
+
+      if (isValidPosition(prev.board, prev.currentPiece.shape, newPosition)) {
+        return {
+          ...prev,
+          currentPiece: {
+            ...prev.currentPiece,
+            position: newPosition,
+          },
+        };
+      }
+
+      return prev;
+    });
+  }, []);
+
+  // Check if piece should lock (called after moveDown)
+  const checkLock = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.currentPiece || prev.isPaused || !prev.isPlaying) return prev;
+
+      const belowPosition = {
+        x: prev.currentPiece.position.x,
+        y: prev.currentPiece.position.y + 1,
+      };
+
+      if (!isValidPosition(prev.board, prev.currentPiece.shape, belowPosition)) {
+        // Lock the piece
+        setTimeout(lockPiece, 0);
+      }
+
+      return prev;
+    });
+  }, [lockPiece]);
+
+  // Move piece left
+  const moveLeft = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.currentPiece || prev.isPaused || !prev.isPlaying) return prev;
+
+      const newPosition = {
+        x: prev.currentPiece.position.x - 1,
+        y: prev.currentPiece.position.y,
+      };
+
+      if (isValidPosition(prev.board, prev.currentPiece.shape, newPosition)) {
+        return {
+          ...prev,
+          currentPiece: {
+            ...prev.currentPiece,
+            position: newPosition,
+          },
+        };
+      }
+
+      return prev;
+    });
+  }, []);
+
+  // Move piece right
+  const moveRight = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.currentPiece || prev.isPaused || !prev.isPlaying) return prev;
+
+      const newPosition = {
+        x: prev.currentPiece.position.x + 1,
+        y: prev.currentPiece.position.y,
+      };
+
+      if (isValidPosition(prev.board, prev.currentPiece.shape, newPosition)) {
+        return {
+          ...prev,
+          currentPiece: {
+            ...prev.currentPiece,
+            position: newPosition,
+          },
+        };
+      }
+
+      return prev;
+    });
+  }, []);
+
+  // Rotate piece
+  const rotate = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.currentPiece || prev.isPaused || !prev.isPlaying) return prev;
+
+      const rotatedShape = rotateShape(prev.currentPiece.shape);
+      const newPosition = tryRotate(prev.board, prev.currentPiece, rotatedShape);
+
+      if (newPosition) {
+        return {
+          ...prev,
+          currentPiece: {
+            ...prev.currentPiece,
+            shape: rotatedShape,
+            position: newPosition,
+            rotation: (prev.currentPiece.rotation + 1) % 4,
+          },
+        };
+      }
+
+      return prev;
+    });
+  }, []);
+
+  // Hard drop
+  const hardDrop = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.currentPiece || prev.isPaused || !prev.isPlaying) return prev;
+
+      let dropY = prev.currentPiece.position.y;
+      while (
+        isValidPosition(prev.board, prev.currentPiece.shape, {
+          x: prev.currentPiece.position.x,
+          y: dropY + 1,
+        })
+      ) {
+        dropY++;
+      }
+
+      // Add score for hard drop (2 points per cell dropped)
+      const dropDistance = dropY - prev.currentPiece.position.y;
+      const dropScore = dropDistance * 2;
+
+      return {
+        ...prev,
+        currentPiece: {
+          ...prev.currentPiece,
+          position: {
+            ...prev.currentPiece.position,
+            y: dropY,
+          },
+        },
+        score: prev.score + dropScore,
+      };
+    });
+
+    // Lock immediately after hard drop
+    setTimeout(lockPiece, 0);
+  }, [lockPiece]);
+
+  // Soft drop (faster falling)
+  const softDrop = useCallback(() => {
+    moveDown();
+    checkLock();
+    // Add 1 point for soft drop
+    setGameState(prev => ({
+      ...prev,
+      score: prev.score + 1,
+    }));
+  }, [moveDown, checkLock]);
+
+  // Toggle pause
+  const togglePause = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.isPlaying || prev.gameOver) return prev;
+      return {
+        ...prev,
+        isPaused: !prev.isPaused,
+      };
+    });
+  }, []);
+
+  // Start game
+  const startGame = useCallback(() => {
+    setGameState(prev => ({
+      ...createInitialState(),
+      highScore: prev.highScore,
+      isPlaying: true,
+      nextPiece: getRandomTetromino(),
+    }));
+    setTimeout(spawnPiece, 100);
+  }, [spawnPiece]);
+
+  // Reset game
+  const resetGame = useCallback(() => {
+    if (gameLoopRef.current) {
+      cancelAnimationFrame(gameLoopRef.current);
+    }
+    setGameState(prev => ({
+      ...createInitialState(),
+      highScore: prev.highScore,
+    }));
+  }, []);
+
+  // Game loop
+  useEffect(() => {
+    if (!gameState.isPlaying || gameState.isPaused || gameState.gameOver) {
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+        gameLoopRef.current = null;
+      }
+      return;
+    }
+
+    const speed = calculateSpeed(gameState.level);
+
+    const gameLoop = (timestamp: number) => {
+      if (timestamp - lastTickRef.current >= speed) {
+        moveDown();
+        checkLock();
+        lastTickRef.current = timestamp;
+      }
+      gameLoopRef.current = requestAnimationFrame(gameLoop);
+    };
+
+    gameLoopRef.current = requestAnimationFrame(gameLoop);
+
+    return () => {
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+      }
+    };
+  }, [gameState.isPlaying, gameState.isPaused, gameState.gameOver, gameState.level, moveDown, checkLock]);
+
+  return {
+    gameState,
+    actions: {
+      moveLeft,
+      moveRight,
+      moveDown: softDrop,
+      rotate,
+      hardDrop,
+      togglePause,
+      startGame,
+      resetGame,
+    },
+  };
+};
