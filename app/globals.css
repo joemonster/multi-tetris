@@ -1,8 +1,35 @@
 @import "tailwindcss";
 
+/* ===== BASE THEME VARIABLES ===== */
 :root {
   --background: #0a0a0a;
   --foreground: #ededed;
+
+  /* Default theme colors */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #1a0033;
+  --text-primary: #ffffff;
+  --text-secondary: #00ffff;
+  --accent: #ff00ff;
+
+  /* Block colors */
+  --block-I: #00ffff;
+  --block-O: #ffff00;
+  --block-T: #ff00ff;
+  --block-S: #00ff00;
+  --block-Z: #ff0000;
+  --block-J: #0088ff;
+  --block-L: #ff8800;
+
+  /* Effects */
+  --glow-intensity: 0 0 20px;
+  --block-shadow: 0 0 20px currentColor;
+  --text-shadow: 0 0 10px currentColor;
+  --border-radius: 2px;
+
+  /* Fonts */
+  --font-display: 'Orbitron', 'Courier New', monospace;
+  --font-ui: 'Exo 2', Arial, sans-serif;
 }
 
 @theme inline {
@@ -18,10 +45,399 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-ui);
 }
 
-/* Keyframe animations */
+/* ===== NEON TOKYO NIGHTS THEME ===== */
+[data-theme="neon-tokyo"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --bg-primary: #0a0a0a;
+  --bg-secondary: linear-gradient(180deg, #1a0033 0%, #330033 100%);
+  --text-primary: #ffffff;
+  --text-secondary: #00ffff;
+  --accent: #ff00ff;
+
+  --block-I: #00ffff;
+  --block-O: #ffff00;
+  --block-T: #ff00ff;
+  --block-S: #00ff00;
+  --block-Z: #ff0000;
+  --block-J: #0088ff;
+  --block-L: #ff8800;
+
+  --glow-intensity: 0 0 20px;
+  --block-shadow: 0 0 20px currentColor;
+  --text-shadow: 0 0 10px currentColor;
+  --border-radius: 2px;
+
+  --font-display: 'Orbitron', 'Courier New', monospace;
+  --font-ui: 'Exo 2', Arial, sans-serif;
+}
+
+[data-theme="neon-tokyo"] body {
+  background:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255, 0, 255, 0.03) 2px,
+      rgba(255, 0, 255, 0.03) 4px
+    ),
+    linear-gradient(180deg, #0a0a0a 0%, #1a0033 50%, #0a0a0a 100%);
+  animation: scanlines 8s linear infinite;
+}
+
+/* Neon Tokyo specific animations */
+@keyframes scanlines {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100vh; }
+}
+
+@keyframes neon-glow {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 5px currentColor); }
+  50% { filter: brightness(1.2) drop-shadow(0 0 15px currentColor); }
+}
+
+@keyframes neon-line-clear {
+  0%, 100% { filter: hue-rotate(0deg) brightness(1); }
+  10% { filter: hue-rotate(90deg) brightness(2); transform: translateX(-2px); }
+  20% { filter: hue-rotate(-90deg) brightness(2); transform: translateX(2px); }
+  30% { filter: hue-rotate(180deg) brightness(3); transform: scale(1.1); }
+  50% { opacity: 0; }
+}
+
+@keyframes chromatic-aberration {
+  0%, 100% { text-shadow: 0 0 10px var(--accent); }
+  25% { text-shadow: -2px 0 #ff0000, 2px 0 #00ffff; }
+  75% { text-shadow: 2px 0 #ff0000, -2px 0 #00ffff; }
+}
+
+/* Neon Tokyo block styles */
+.neon-tokyo-block {
+  background: linear-gradient(45deg, currentColor, color-mix(in srgb, currentColor 80%, white));
+  box-shadow:
+    0 0 10px currentColor,
+    0 0 20px currentColor,
+    inset 0 0 10px rgba(255, 255, 255, 0.3);
+  animation: neon-glow 2s ease-in-out infinite;
+}
+
+.neon-tokyo-title {
+  font-family: var(--font-display);
+  text-shadow:
+    0 0 10px #00ffff,
+    0 0 20px #00ffff,
+    0 0 40px #ff00ff,
+    0 0 80px #ff00ff;
+  animation: chromatic-aberration 3s ease-in-out infinite;
+}
+
+/* ===== BRUTALIST MONOLITH THEME ===== */
+[data-theme="brutalist"] {
+  --background: #1a1a1a;
+  --foreground: #f0f0f0;
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --text-primary: #ffffff;
+  --text-secondary: #909090;
+  --accent: #ff3333;
+
+  --block-I: #f0f0f0;
+  --block-O: #d0d0d0;
+  --block-T: #b0b0b0;
+  --block-S: #909090;
+  --block-Z: #707070;
+  --block-J: #505050;
+  --block-L: #ff3333;
+
+  --glow-intensity: none;
+  --block-shadow: 4px 4px 0px rgba(0,0,0,0.8);
+  --text-shadow: 3px 3px 0px rgba(0,0,0,0.8);
+  --border-radius: 0px;
+
+  --font-display: 'Impact', 'Arial Black', sans-serif;
+  --font-ui: 'Roboto Mono', 'Courier New', monospace;
+}
+
+[data-theme="brutalist"] body {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #1a1a1a 0px,
+      #1f1f1f 3px,
+      #1a1a1a 6px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      #1a1a1a 0px,
+      #181818 2px,
+      #1a1a1a 4px
+    );
+  background-blend-mode: multiply;
+}
+
+/* Brutalist specific animations */
+@keyframes brutalist-impact {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  25% { transform: translate(-2px, 2px) rotate(-0.5deg); }
+  50% { transform: translate(2px, -2px) rotate(0.5deg); }
+  75% { transform: translate(-1px, -1px) rotate(-0.25deg); }
+}
+
+@keyframes brutalist-line-clear {
+  0% {
+    background-color: #ff3333;
+    transform: scaleY(1);
+  }
+  50% {
+    background-color: #ffffff;
+  }
+  100% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+}
+
+/* Brutalist block styles */
+.brutalist-block {
+  background: linear-gradient(135deg,
+    currentColor 0%,
+    color-mix(in srgb, currentColor 80%, black) 100%);
+  border: 2px solid black;
+  box-shadow: 4px 4px 0px rgba(0,0,0,0.8);
+  position: relative;
+}
+
+.brutalist-block::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.1) 2px,
+    rgba(0,0,0,0.1) 4px
+  );
+  pointer-events: none;
+}
+
+.brutalist-title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  text-shadow: 3px 3px 0px rgba(0,0,0,0.8);
+}
+
+.brutalist-panel {
+  border: 3px solid #000;
+  box-shadow: 6px 6px 0px rgba(0,0,0,0.8);
+}
+
+/* ===== ORGANIC FLOW THEME ===== */
+[data-theme="organic-flow"] {
+  --background: #667eea;
+  --foreground: #ffffff;
+  --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --bg-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --text-primary: #ffffff;
+  --text-secondary: #e2ebf0;
+  --accent: #fa709a;
+
+  --block-I: #fa709a;
+  --block-O: #30cfd0;
+  --block-T: #a8edea;
+  --block-S: #ff9a9e;
+  --block-Z: #fecfef;
+  --block-J: #a1c4fd;
+  --block-L: #e2ebf0;
+
+  --glow-intensity: 0 8px 32px rgba(31, 38, 135, 0.37);
+  --block-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+  --text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  --border-radius: 12px;
+
+  --font-display: 'Georgia', 'Times New Roman', serif;
+  --font-ui: 'Quicksand', 'Arial', sans-serif;
+}
+
+[data-theme="organic-flow"] body {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow-x: hidden;
+}
+
+[data-theme="organic-flow"] body::before {
+  content: '';
+  position: fixed;
+  inset: -50%;
+  background: radial-gradient(
+    circle at 30% 50%,
+    rgba(255,255,255,0.3) 0%,
+    transparent 70%
+  );
+  animation: wave 20s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Organic Flow specific animations */
+@keyframes wave {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-20px) rotate(-3deg); }
+  75% { transform: translateY(15px) rotate(3deg); }
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.4; transform: translateX(-100%); }
+  50% { opacity: 0.8; transform: translateX(100%); }
+}
+
+@keyframes organic-dissolve {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(20px);
+    transform: scale(0.8) translateY(-20px);
+  }
+}
+
+@keyframes bubble {
+  0% { transform: translateY(0) scale(1); opacity: 0.8; }
+  100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
+}
+
+/* Organic Flow block styles */
+.organic-block {
+  background: linear-gradient(135deg, currentColor 0%, color-mix(in srgb, currentColor 70%, white) 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: var(--border-radius);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+  position: relative;
+  overflow: hidden;
+}
+
+.organic-block::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255,255,255,0.4) 0%,
+    transparent 50%,
+    rgba(255,255,255,0.1) 100%
+  );
+  animation: shimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.organic-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.organic-panel {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+}
+
+/* ===== THEME TRANSITION ===== */
+.theme-transition {
+  animation: theme-morph 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes theme-morph {
+  0% {
+    filter: brightness(1) saturate(1);
+    transform: scale(1);
+  }
+  50% {
+    filter: brightness(1.5) saturate(0);
+    transform: scale(0.98);
+  }
+  100% {
+    filter: brightness(1) saturate(1);
+    transform: scale(1);
+  }
+}
+
+/* ===== THEME SELECTOR STYLES ===== */
+.theme-selector {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.theme-preview {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.theme-preview:hover {
+  transform: scale(1.05);
+}
+
+.theme-preview:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.theme-preview.active {
+  border-color: var(--accent);
+}
+
+.theme-preview-neon {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a0033 100%);
+  color: #00ffff;
+  text-shadow: 0 0 5px #00ffff;
+}
+
+.theme-preview-brutal {
+  background: #1a1a1a;
+  color: #f0f0f0;
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.8);
+}
+
+.theme-preview-organic {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+}
+
+/* Preview blocks within theme selector */
+.preview-blocks {
+  display: grid;
+  grid-template-columns: repeat(4, 4px);
+  gap: 1px;
+  height: 12px;
+}
+
+.preview-blocks > div {
+  width: 4px;
+  height: 4px;
+}
+
+/* ===== COMMON ANIMATIONS ===== */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -56,7 +472,7 @@ body {
   }
 }
 
-/* Custom utility classes */
+/* ===== UTILITY CLASSES ===== */
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
@@ -67,6 +483,19 @@ body {
 
 .animate-line-clear {
   animation: line-clear 0.3s ease-out forwards;
+}
+
+/* Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 /* Prevent text selection during game */
@@ -82,20 +511,35 @@ body {
   touch-action: manipulation;
 }
 
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .theme-transition {
+    animation: none;
+  }
+}
+
 /* Custom scrollbar for webkit browsers */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: var(--bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: var(--text-secondary);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: var(--accent);
 }
