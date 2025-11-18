@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useGameLogic } from './hooks/useGameLogic';
 import { useKeyboardControls } from './hooks/useKeyboardControls';
 import { GameBoard } from './components/GameBoard';
@@ -8,9 +8,12 @@ import { NextPiece } from './components/NextPiece';
 import { ScorePanel } from './components/ScorePanel';
 import { Controls } from './components/Controls';
 import { GameOver } from './components/GameOver';
+import { ThemeSelector } from './components/ThemeSelector';
+import { useTheme, ThemeId } from './contexts/ThemeContext';
 
 export default function TetrisGame() {
   const { gameState, actions } = useGameLogic();
+  const { themeId, setTheme } = useTheme();
 
   // Setup keyboard controls
   useKeyboardControls({
@@ -19,13 +22,158 @@ export default function TetrisGame() {
     gameOver: gameState.gameOver,
   });
 
+  // Theme keyboard shortcuts (1, 2, 3)
+  useEffect(() => {
+    const handleThemeKeypress = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      const themeMap: Record<string, ThemeId> = {
+        '1': 'neon-tokyo',
+        '2': 'brutalist',
+        '3': 'organic-flow',
+      };
+
+      if (themeMap[e.key]) {
+        setTheme(themeMap[e.key]);
+      }
+    };
+
+    window.addEventListener('keydown', handleThemeKeypress);
+    return () => window.removeEventListener('keydown', handleThemeKeypress);
+  }, [setTheme]);
+
   const isNewHighScore = gameState.gameOver && gameState.score === gameState.highScore && gameState.score > 0;
 
+  // Get theme-specific background styles
+  const getBackgroundClass = () => {
+    switch (themeId) {
+      case 'neon-tokyo':
+        return 'min-h-screen bg-gradient-to-br from-black via-purple-950/30 to-black';
+      case 'brutalist':
+        return 'min-h-screen bg-neutral-900';
+      case 'organic-flow':
+        return 'min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500';
+      default:
+        return 'min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900';
+    }
+  };
+
+  // Get theme-specific title styles
+  const getTitleClass = () => {
+    switch (themeId) {
+      case 'neon-tokyo':
+        return 'text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-cyan-400 neon-tokyo-title';
+      case 'brutalist':
+        return 'text-4xl sm:text-5xl font-black text-white brutalist-title';
+      case 'organic-flow':
+        return 'text-4xl sm:text-5xl font-bold text-white organic-title';
+      default:
+        return 'text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500';
+    }
+  };
+
+  // Get theme-specific button styles
+  const getButtonClass = (variant: 'start' | 'pause' | 'reset') => {
+    const baseClass = 'py-2 px-6 font-semibold rounded-lg transition-colors duration-200';
+
+    switch (themeId) {
+      case 'neon-tokyo':
+        switch (variant) {
+          case 'start':
+            return `${baseClass} bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-400`;
+          case 'pause':
+            return `${baseClass} bg-purple-600 hover:bg-purple-500 text-white border border-purple-400`;
+          case 'reset':
+            return `${baseClass} bg-pink-600 hover:bg-pink-500 text-white border border-pink-400`;
+        }
+        break;
+      case 'brutalist':
+        switch (variant) {
+          case 'start':
+            return `${baseClass} bg-white text-black border-4 border-black hover:bg-gray-200 font-bold uppercase`;
+          case 'pause':
+            return `${baseClass} bg-gray-400 text-black border-4 border-black hover:bg-gray-300 font-bold uppercase`;
+          case 'reset':
+            return `${baseClass} bg-red-500 text-white border-4 border-black hover:bg-red-400 font-bold uppercase`;
+        }
+        break;
+      case 'organic-flow':
+        switch (variant) {
+          case 'start':
+            return `${baseClass} bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30 rounded-xl`;
+          case 'pause':
+            return `${baseClass} bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30 rounded-xl`;
+          case 'reset':
+            return `${baseClass} bg-pink-500/50 backdrop-blur-sm hover:bg-pink-500/70 text-white border border-pink-400/50 rounded-xl`;
+        }
+        break;
+      default:
+        switch (variant) {
+          case 'start':
+            return `${baseClass} bg-green-600 hover:bg-green-500 text-white`;
+          case 'pause':
+            return `${baseClass} bg-yellow-600 hover:bg-yellow-500 text-white`;
+          case 'reset':
+            return `${baseClass} bg-red-600 hover:bg-red-500 text-white`;
+        }
+    }
+  };
+
+  // Get theme-specific overlay styles
+  const getOverlayClass = () => {
+    switch (themeId) {
+      case 'neon-tokyo':
+        return 'bg-black/80 rounded-lg border border-cyan-500/30';
+      case 'brutalist':
+        return 'bg-black/90 border-4 border-black';
+      case 'organic-flow':
+        return 'bg-white/20 backdrop-blur-md rounded-xl border border-white/30';
+      default:
+        return 'bg-black/80 rounded-lg';
+    }
+  };
+
+  // Get theme-specific text for title
+  const getTitleText = () => {
+    switch (themeId) {
+      case 'neon-tokyo':
+        return 'TETRIS';
+      case 'brutalist':
+        return 'TETRIS';
+      case 'organic-flow':
+        return 'Tetris';
+      default:
+        return 'TETRIS';
+    }
+  };
+
+  // Get help text styles
+  const getHelpTextClass = () => {
+    switch (themeId) {
+      case 'neon-tokyo':
+        return 'text-cyan-400/60';
+      case 'brutalist':
+        return 'text-gray-500';
+      case 'organic-flow':
+        return 'text-white/60';
+      default:
+        return 'text-gray-500';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 flex flex-col items-center justify-center p-4">
+    <div className={`${getBackgroundClass()} flex flex-col items-center justify-center p-4`}>
+      {/* Theme Selector */}
+      <div className="mb-4">
+        <ThemeSelector />
+      </div>
+
       {/* Title */}
-      <h1 className="text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 mb-6">
-        TETRIS
+      <h1 className={`${getTitleClass()} mb-6`}>
+        {getTitleText()}
       </h1>
 
       {/* Main game area */}
@@ -40,27 +188,32 @@ export default function TetrisGame() {
 
           {/* Start screen overlay */}
           {!gameState.isPlaying && !gameState.gameOver && (
-            <div className="absolute inset-0 bg-black/80 flex items-center justify-center rounded-lg">
+            <div className={`absolute inset-0 flex items-center justify-center ${getOverlayClass()}`}>
               <div className="text-center p-4">
-                <p className="text-xl font-bold text-white mb-4">
-                  Press Start to Play
+                <p className={`text-xl font-bold mb-4 ${themeId === 'organic-flow' ? 'text-white' : 'text-white'}`}>
+                  {themeId === 'brutalist' ? 'PRESS START TO PLAY' : 'Press Start to Play'}
                 </p>
                 <button
                   onClick={actions.startGame}
-                  className="
+                  className={`
                     py-3 px-8
-                    bg-gradient-to-r from-green-600 to-emerald-600
-                    hover:from-green-500 hover:to-emerald-500
+                    ${themeId === 'neon-tokyo'
+                      ? 'bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 border border-cyan-400'
+                      : themeId === 'brutalist'
+                      ? 'bg-white text-black border-4 border-black hover:bg-gray-200 font-black uppercase'
+                      : themeId === 'organic-flow'
+                      ? 'bg-white/30 hover:bg-white/40 backdrop-blur-sm border border-white/40 rounded-xl'
+                      : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500'}
                     text-white font-bold text-lg
                     rounded-lg
                     transition-all duration-200
                     transform hover:scale-105 active:scale-95
                     shadow-lg
-                  "
+                  `}
                 >
-                  Start Game
+                  {themeId === 'brutalist' ? 'START GAME' : 'Start Game'}
                 </button>
-                <p className="text-gray-400 text-sm mt-4">
+                <p className={`text-sm mt-4 ${themeId === 'organic-flow' ? 'text-white/60' : 'text-gray-400'}`}>
                   or press Enter
                 </p>
               </div>
@@ -89,41 +242,25 @@ export default function TetrisGame() {
         {!gameState.isPlaying ? (
           <button
             onClick={actions.startGame}
-            className="
-              py-2 px-6
-              bg-green-600 hover:bg-green-500
-              text-white font-semibold
-              rounded-lg
-              transition-colors duration-200
-            "
+            className={getButtonClass('start')}
           >
-            Start
+            {themeId === 'brutalist' ? 'START' : 'Start'}
           </button>
         ) : (
           <button
             onClick={actions.togglePause}
-            className="
-              py-2 px-6
-              bg-yellow-600 hover:bg-yellow-500
-              text-white font-semibold
-              rounded-lg
-              transition-colors duration-200
-            "
+            className={getButtonClass('pause')}
           >
-            {gameState.isPaused ? 'Resume' : 'Pause'}
+            {themeId === 'brutalist'
+              ? (gameState.isPaused ? 'RESUME' : 'PAUSE')
+              : (gameState.isPaused ? 'Resume' : 'Pause')}
           </button>
         )}
         <button
           onClick={actions.resetGame}
-          className="
-            py-2 px-6
-            bg-red-600 hover:bg-red-500
-            text-white font-semibold
-            rounded-lg
-            transition-colors duration-200
-          "
+          className={getButtonClass('reset')}
         >
-          Reset
+          {themeId === 'brutalist' ? 'RESET' : 'Reset'}
         </button>
       </div>
 
@@ -140,14 +277,14 @@ export default function TetrisGame() {
       />
 
       {/* Controls help */}
-      <div className="hidden md:block mt-6 text-gray-500 text-sm text-center">
+      <div className={`hidden md:block mt-6 text-sm text-center ${getHelpTextClass()}`}>
         <p>
-          <span className="text-gray-400">Controls:</span>{' '}
-          <span className="text-gray-300">←→</span> Move |{' '}
-          <span className="text-gray-300">↑</span> Rotate |{' '}
-          <span className="text-gray-300">↓</span> Soft Drop |{' '}
-          <span className="text-gray-300">Space</span> Hard Drop |{' '}
-          <span className="text-gray-300">P</span> Pause
+          <span className={themeId === 'organic-flow' ? 'text-white/70' : 'text-gray-400'}>Controls:</span>{' '}
+          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>Arrows</span> Move |{' '}
+          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>Up</span> Rotate |{' '}
+          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>Space</span> Hard Drop |{' '}
+          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>P</span> Pause |{' '}
+          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>1-3</span> Theme
         </p>
       </div>
 
