@@ -37,11 +37,12 @@ const saveHighScore = (score: number): void => {
   }
 };
 
-// Create initial game state
+// Create initial game state - use 'T' as default to avoid hydration mismatch
+// The actual random piece will be set on client-side mount
 const createInitialState = (): GameState => ({
   board: createEmptyBoard(),
   currentPiece: null,
-  nextPiece: getRandomTetromino(),
+  nextPiece: 'T',
   score: 0,
   lines: 0,
   level: 1,
@@ -68,10 +69,11 @@ export const useGameLogic = () => {
   const gameLoopRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(0);
 
-  // Load high score on mount
+  // Load high score and set initial random piece on mount (client-side only)
   useEffect(() => {
     const highScore = getStoredHighScore();
-    setGameState(prev => ({ ...prev, highScore }));
+    const nextPiece = getRandomTetromino();
+    setGameState(prev => ({ ...prev, highScore, nextPiece }));
   }, []);
 
   // Spawn a new piece
