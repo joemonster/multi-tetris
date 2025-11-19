@@ -4,12 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:party": "partykit dev",
+    "dev:all": "concurrently \"npm run dev\" \"npm run dev:party\"",
     "build": "next build",
     "start": "next start",
+    "deploy:party": "partykit deploy",
     "lint": "eslint"
   },
   "dependencies": {
     "next": "16.0.3",
+    "partysocket": "^1.0.1",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },
@@ -18,8 +22,10 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^8.2.2",
     "eslint": "^9",
     "eslint-config-next": "16.0.3",
+    "partykit": "^0.0.111",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
