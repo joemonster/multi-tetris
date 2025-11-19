@@ -17,7 +17,6 @@ import {
   calculateLevel,
   calculateSpeed,
   getStartPosition,
-  isGameOver,
   tryRotate,
 } from '../utils/gameHelpers';
 
@@ -82,8 +81,8 @@ export const useGameLogic = () => {
       const newPiece = createPiece(prev.nextPiece);
       const nextPiece = getRandomTetromino();
 
-      // Check if game is over
-      if (isGameOver(prev.board, newPiece.shape)) {
+      // Check if game is over - piece can't be placed at its position
+      if (!isValidPosition(prev.board, newPiece.shape, newPiece.position)) {
         const newHighScore = Math.max(prev.score, prev.highScore);
         if (prev.score > prev.highScore) {
           saveHighScore(prev.score);
