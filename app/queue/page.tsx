@@ -53,6 +53,8 @@ export default function QueuePage() {
   // Handle game start
   const handleGameStart = () => {
     if (matchData) {
+      // Save opponent nickname for game page
+      localStorage.setItem('tetris_opponent', matchData.opponent);
       router.push(`/game/${matchData.roomId}`);
     }
   };

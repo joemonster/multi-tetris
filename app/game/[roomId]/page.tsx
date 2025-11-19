@@ -10,13 +10,14 @@ import { Controls } from '../../components/Controls';
 import { OpponentBoard } from '../../components/multiplayer/OpponentBoard';
 import { PlayerCard } from '../../components/multiplayer/PlayerCard';
 import { GameTimer } from '../../components/multiplayer/GameTimer';
-import { DisconnectWarning } from '../../components/multiplayer/DisconnectWarning';
 
 export default function MultiplayerGame() {
   const params = useParams();
   const router = useRouter();
   const roomId = params.roomId as string;
   const [nickname, setNickname] = useState('');
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [disconnectCountdown, setDisconnectCountdown] = useState(10);
 
   // Load nickname
   useEffect(() => {
@@ -49,16 +50,22 @@ export default function MultiplayerGame() {
     gameOver: gameState.gameOver,
   });
 
-  // Handle game over
+  // Handle exit game confirmation
   const handleExitGame = () => {
     router.push('/');
   };
 
-  // Handle disconnect timeout
-  const handleDisconnectTimeout = () => {
-    // Auto-win when opponent disconnects
-    router.push('/');
-  };
+  // Handle disconnect countdown
+  useEffect(() => {
+    if (isOpponentDisconnected && disconnectCountdown > 0) {
+      const timer = setTimeout(() => {
+        setDisconnectCountdown(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (isOpponentDisconnected && disconnectCountdown === 0) {
+      router.push('/');
+    }
+  }, [isOpponentDisconnected, disconnectCountdown, router]);
 
   // Create empty board for opponent if no state yet
   const emptyBoard = Array(20).fill(null).map(() =>
@@ -158,17 +165,68 @@ export default function MultiplayerGame() {
         isPaused={gameState.isPaused}
       />
 
-      {/* Controls help */}
-      <div className="hidden md:block mt-4 text-[var(--terminal-gray)] text-xs font-mono">
-        [ESC = MENU]
+      {/* Controls help and exit button */}
+      <div className="flex items-center gap-4 mt-4">
+        <button
+          onClick={() => setShowExitModal(true)}
+          className="terminal-button text-xs"
+        >
+          ZAKOŃCZ GRĘ
+        </button>
+        <span className="hidden md:inline text-[var(--terminal-gray)] text-xs font-mono">
+          [ESC = MENU]
+        </span>
       </div>
 
-      {/* Disconnect warning */}
+      {/* Exit confirmation modal */}
+      {showExitModal && (
+        <div className="fixed inset-0 bg-[var(--bg-terminal)]/95 flex items-center justify-center z-50">
+          <div className="terminal-panel p-6 text-center max-w-sm">
+            <h2 className="text-[var(--terminal-orange)] text-xl font-mono font-bold mb-4">
+              ! ZAKOŃCZYĆ GRĘ?
+            </h2>
+            <p className="text-[var(--terminal-gray)] font-mono text-sm mb-6">
+              Na pewno chcesz wyjść? Przeciwnik wygra mecz.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => setShowExitModal(false)}
+                className="terminal-button"
+              >
+                WRÓĆ DO GRY
+              </button>
+              <button
+                onClick={handleExitGame}
+                className="terminal-button"
+              >
+                WYJDŹ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Opponent disconnected modal */}
       {isOpponentDisconnected && (
-        <DisconnectWarning
-          onExit={handleExitGame}
-          onTimeout={handleDisconnectTimeout}
-        />
+        <div className="fixed inset-0 bg-[var(--bg-terminal)]/95 flex items-center justify-center z-50">
+          <div className="terminal-panel p-6 text-center max-w-sm">
+            <h2 className="text-[var(--terminal-orange)] text-xl font-mono font-bold mb-4">
+              ! PRZECIWNIK SIĘ ROZŁĄCZYŁ
+            </h2>
+            <p className="text-[var(--terminal-gray)] font-mono text-sm mb-4">
+              {opponentNickname || 'Przeciwnik'} opuścił grę.
+            </p>
+            <p className="text-[var(--terminal-gray)] font-mono text-sm mb-6">
+              Powrót do menu za: <span className="text-[var(--terminal-green)] font-bold">{disconnectCountdown}</span> sekund
+            </p>
+            <button
+              onClick={handleExitGame}
+              className="terminal-button"
+            >
+              WYJDŹ TERAZ
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Game over modal */}

@@ -20,10 +20,31 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   const [opponentNickname, setOpponentNickname] = useState<string>('');
   const [isOpponentDisconnected, setIsOpponentDisconnected] = useState(false);
   const [gameResult, setGameResult] = useState<{ winner: string; reason: string } | null>(null);
+  const [gameStarted, setGameStarted] = useState(false);
+
+  // Load opponent nickname from localStorage on mount
+  useEffect(() => {
+    const savedOpponent = localStorage.getItem('tetris_opponent');
+    if (savedOpponent) {
+      setOpponentNickname(savedOpponent);
+    }
+  }, []);
 
   // Throttle ref for sending updates
   const lastUpdateRef = useRef<number>(0);
   const throttleMs = 100;
+
+  // Auto-start game when component mounts (player navigated here from queue)
+  useEffect(() => {
+    if (isConnected && roomId && !gameStarted) {
+      // Small delay to ensure everything is set up
+      const timer = setTimeout(() => {
+        gameLogic.actions.startGame();
+        setGameStarted(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected, roomId, gameStarted, gameLogic.actions]);
 
   // Send game state to server (throttled)
   useEffect(() => {
@@ -84,8 +105,11 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       if (data.opponent) {
         setOpponentNickname(data.opponent);
       }
-      // Start the game
-      gameLogic.actions.startGame();
+      // Game is auto-started, but this can serve as a backup
+      if (!gameStarted) {
+        gameLogic.actions.startGame();
+        setGameStarted(true);
+      }
     };
 
     on('opponent_update', handleOpponentUpdate);
@@ -101,7 +125,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       off('game_over');
       off('game_start');
     };
-  }, [socket, on, off, gameLogic.actions]);
+  }, [socket, on, off, gameLogic.actions, gameStarted]);
 
   // Leave game on unmount
   useEffect(() => {
