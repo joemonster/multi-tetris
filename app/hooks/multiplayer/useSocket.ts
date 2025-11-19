@@ -1,44 +1,64 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { Socket } from 'socket.io-client';
-import { getSocket, connectSocket, disconnectSocket } from '../../lib/socket/client';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import PartySocket from 'partysocket';
+import { getSocket, disconnectSocket } from '../../lib/socket/client';
+
+interface MessageHandler {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: (data: any) => void;
+}
 
 export function useSocket() {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<PartySocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const handlersRef = useRef<MessageHandler>({});
 
   useEffect(() => {
-    const s = connectSocket();
+    const s = getSocket();
     setSocket(s);
 
-    const onConnect = () => {
+    const onOpen = () => {
       setIsConnected(true);
       setError(null);
     };
 
-    const onDisconnect = () => {
+    const onClose = () => {
       setIsConnected(false);
     };
 
-    const onError = (err: Error) => {
-      setError(err.message);
+    const onError = () => {
+      setError('Błąd połączenia');
     };
 
-    s.on('connect', onConnect);
-    s.on('disconnect', onDisconnect);
-    s.on('connect_error', onError);
+    const onMessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        const handler = handlersRef.current[data.type];
+        if (handler) {
+          handler(data);
+        }
+      } catch (e) {
+        console.error('Failed to parse message:', e);
+      }
+    };
+
+    s.addEventListener('open', onOpen);
+    s.addEventListener('close', onClose);
+    s.addEventListener('error', onError);
+    s.addEventListener('message', onMessage);
 
     // Check if already connected
-    if (s.connected) {
+    if (s.readyState === WebSocket.OPEN) {
       setIsConnected(true);
     }
 
     return () => {
-      s.off('connect', onConnect);
-      s.off('disconnect', onDisconnect);
-      s.off('connect_error', onError);
+      s.removeEventListener('open', onOpen);
+      s.removeEventListener('close', onClose);
+      s.removeEventListener('error', onError);
+      s.removeEventListener('message', onMessage);
     };
   }, []);
 
@@ -48,27 +68,26 @@ export function useSocket() {
   }, []);
 
   const emit = useCallback((event: string, data?: unknown) => {
-    if (socket?.connected) {
-      socket.emit(event, data);
+    if (socket?.readyState === WebSocket.OPEN) {
+      const message = {
+        type: event,
+        ...(data as object || {})
+      };
+      socket.send(JSON.stringify(message));
     }
   }, [socket]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const on = useCallback((event: string, callback: (...args: any[]) => void) => {
-    socket?.on(event, callback);
+  const on = useCallback((event: string, callback: (data: any) => void) => {
+    handlersRef.current[event] = callback;
     return () => {
-      socket?.off(event, callback);
+      delete handlersRef.current[event];
     };
-  }, [socket]);
+  }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const off = useCallback((event: string, callback?: (...args: any[]) => void) => {
-    if (callback) {
-      socket?.off(event, callback);
-    } else {
-      socket?.off(event);
-    }
-  }, [socket]);
+  const off = useCallback((event: string) => {
+    delete handlersRef.current[event];
+  }, []);
 
   return {
     socket,
