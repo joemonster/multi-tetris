@@ -17,7 +17,6 @@ import {
   calculateLevel,
   calculateSpeed,
   getStartPosition,
-  isGameOver,
   tryRotate,
 } from '../utils/gameHelpers';
 
@@ -82,8 +81,8 @@ export const useGameLogic = () => {
       const newPiece = createPiece(prev.nextPiece);
       const nextPiece = getRandomTetromino();
 
-      // Check if game is over
-      if (isGameOver(prev.board, newPiece.shape)) {
+      // Check if game is over - piece can't be placed at its position
+      if (!isValidPosition(prev.board, newPiece.shape, newPiece.position)) {
         const newHighScore = Math.max(prev.score, prev.highScore);
         if (prev.score > prev.highScore) {
           saveHighScore(prev.score);
@@ -109,6 +108,29 @@ export const useGameLogic = () => {
   const lockPiece = useCallback(() => {
     setGameState(prev => {
       if (!prev.currentPiece) return prev;
+
+      // Check if any part of the piece is above the visible board (game over)
+      for (let y = 0; y < prev.currentPiece.shape.length; y++) {
+        for (let x = 0; x < prev.currentPiece.shape[y].length; x++) {
+          if (prev.currentPiece.shape[y][x]) {
+            const boardY = prev.currentPiece.position.y + y;
+            if (boardY < 0) {
+              // Game over - piece locked above the visible board
+              const newHighScore = Math.max(prev.score, prev.highScore);
+              if (prev.score > prev.highScore) {
+                saveHighScore(prev.score);
+              }
+              return {
+                ...prev,
+                gameOver: true,
+                isPlaying: false,
+                currentPiece: null,
+                highScore: newHighScore,
+              };
+            }
+          }
+        }
+      }
 
       // Merge piece to board
       let newBoard = mergePieceToBoard(prev.board, prev.currentPiece);

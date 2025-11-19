@@ -147,7 +147,9 @@ export const getStartPosition = (shape: Shape): Position => {
 // Check if game is over (piece can't be placed at start)
 export const isGameOver = (board: Board, shape: Shape): boolean => {
   const startPos = getStartPosition(shape);
-  return !isValidPosition(board, shape, { ...startPos, y: 0 });
+  // Game is over if piece can't be placed at its starting position (-1)
+  // This gives more room before triggering game over
+  return !isValidPosition(board, shape, startPos);
 };
 
 // Wall kick offsets for rotation (SRS - Super Rotation System)
