@@ -34,6 +34,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     lastUpdateRef.current = now;
 
     const updateData: GameUpdateData = {
+      type: 'game_update',
       roomId,
       board: gameLogic.gameState.board,
       score: gameLogic.gameState.score,
@@ -94,11 +95,11 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     on('game_start', handleGameStart);
 
     return () => {
-      off('opponent_update', handleOpponentUpdate);
-      off('opponent_disconnected', handleOpponentDisconnected);
-      off('opponent_reconnected', handleOpponentReconnected);
-      off('game_over', handleGameOver);
-      off('game_start', handleGameStart);
+      off('opponent_update');
+      off('opponent_disconnected');
+      off('opponent_reconnected');
+      off('game_over');
+      off('game_start');
     };
   }, [socket, on, off, gameLogic.actions]);
 

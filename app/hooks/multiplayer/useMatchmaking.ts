@@ -50,11 +50,11 @@ export function useMatchmaking() {
     on('error', handleError);
 
     return () => {
-      off('queue_joined', handleQueueJoined);
-      off('queue_update', handleQueueUpdate);
-      off('match_found', handleMatchFound);
-      off('queue_timeout', handleTimeout);
-      off('error', handleError);
+      off('queue_joined');
+      off('queue_update');
+      off('match_found');
+      off('queue_timeout');
+      off('error');
     };
   }, [socket, on, off]);
 

@@ -5,8 +5,7 @@ import PartySocket from 'partysocket';
 import { getSocket, disconnectSocket } from '../../lib/socket/client';
 
 interface MessageHandler {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: (data: any) => void;
+  [key: string]: (data: unknown) => void;
 }
 
 export function useSocket() {
@@ -77,9 +76,8 @@ export function useSocket() {
     }
   }, [socket]);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const on = useCallback((event: string, callback: (data: any) => void) => {
-    handlersRef.current[event] = callback;
+  const on = useCallback(<T = unknown>(event: string, callback: (data: T) => void) => {
+    handlersRef.current[event] = callback as (data: unknown) => void;
     return () => {
       delete handlersRef.current[event];
     };
