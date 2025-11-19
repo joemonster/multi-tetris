@@ -1,304 +1,92 @@
 'use client';
 
-import React, { useEffect } from 'react';
-import { useGameLogic } from './hooks/useGameLogic';
-import { useKeyboardControls } from './hooks/useKeyboardControls';
-import { GameBoard } from './components/GameBoard';
-import { NextPiece } from './components/NextPiece';
-import { ScorePanel } from './components/ScorePanel';
-import { Controls } from './components/Controls';
-import { GameOver } from './components/GameOver';
-import { ThemeSelector } from './components/ThemeSelector';
-import { useTheme, ThemeId } from './contexts/ThemeContext';
+import React, { useState, useEffect } from 'react';
+import { NicknameInput } from './components/multiplayer/NicknameInput';
+import { ModeSelector } from './components/multiplayer/ModeSelector';
+import { useSocket } from './hooks/multiplayer/useSocket';
 
-export default function TetrisGame() {
-  const { gameState, actions } = useGameLogic();
-  const { themeId, setTheme } = useTheme();
+export default function LandingPage() {
+  const [nickname, setNickname] = useState('');
+  const [onlineCount, setOnlineCount] = useState(0);
+  const { isConnected } = useSocket();
 
-  // Setup keyboard controls
-  useKeyboardControls({
-    actions,
-    isPlaying: gameState.isPlaying,
-    gameOver: gameState.gameOver,
-  });
-
-  // Theme keyboard shortcuts (1, 2, 3)
+  // Simulate online count (in production, get from server)
   useEffect(() => {
-    const handleThemeKeypress = (e: KeyboardEvent) => {
-      // Don't trigger if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      const themeMap: Record<string, ThemeId> = {
-        '1': 'neon-tokyo',
-        '2': 'brutalist',
-        '3': 'organic-flow',
-      };
-
-      if (themeMap[e.key]) {
-        setTheme(themeMap[e.key]);
-      }
-    };
-
-    window.addEventListener('keydown', handleThemeKeypress);
-    return () => window.removeEventListener('keydown', handleThemeKeypress);
-  }, [setTheme]);
-
-  const isNewHighScore = gameState.gameOver && gameState.score === gameState.highScore && gameState.score > 0;
-
-  // Get theme-specific background styles
-  const getBackgroundClass = () => {
-    switch (themeId) {
-      case 'neon-tokyo':
-        return 'min-h-screen bg-gradient-to-br from-black via-purple-950/30 to-black';
-      case 'brutalist':
-        return 'min-h-screen bg-neutral-900';
-      case 'organic-flow':
-        return 'min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500';
-      default:
-        return 'min-h-screen bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900';
-    }
-  };
-
-  // Get theme-specific title styles
-  const getTitleClass = () => {
-    switch (themeId) {
-      case 'neon-tokyo':
-        return 'text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-cyan-400 neon-tokyo-title';
-      case 'brutalist':
-        return 'text-4xl sm:text-5xl font-black text-white brutalist-title';
-      case 'organic-flow':
-        return 'text-4xl sm:text-5xl font-bold text-white organic-title';
-      default:
-        return 'text-4xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500';
-    }
-  };
-
-  // Get theme-specific button styles
-  const getButtonClass = (variant: 'start' | 'pause' | 'reset') => {
-    const baseClass = 'py-2 px-6 font-semibold rounded-lg transition-colors duration-200';
-
-    switch (themeId) {
-      case 'neon-tokyo':
-        switch (variant) {
-          case 'start':
-            return `${baseClass} bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-400`;
-          case 'pause':
-            return `${baseClass} bg-purple-600 hover:bg-purple-500 text-white border border-purple-400`;
-          case 'reset':
-            return `${baseClass} bg-pink-600 hover:bg-pink-500 text-white border border-pink-400`;
-        }
-        break;
-      case 'brutalist':
-        switch (variant) {
-          case 'start':
-            return `${baseClass} bg-white text-black border-4 border-black hover:bg-gray-200 font-bold uppercase`;
-          case 'pause':
-            return `${baseClass} bg-gray-400 text-black border-4 border-black hover:bg-gray-300 font-bold uppercase`;
-          case 'reset':
-            return `${baseClass} bg-red-500 text-white border-4 border-black hover:bg-red-400 font-bold uppercase`;
-        }
-        break;
-      case 'organic-flow':
-        switch (variant) {
-          case 'start':
-            return `${baseClass} bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30 rounded-xl`;
-          case 'pause':
-            return `${baseClass} bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30 rounded-xl`;
-          case 'reset':
-            return `${baseClass} bg-pink-500/50 backdrop-blur-sm hover:bg-pink-500/70 text-white border border-pink-400/50 rounded-xl`;
-        }
-        break;
-      default:
-        switch (variant) {
-          case 'start':
-            return `${baseClass} bg-green-600 hover:bg-green-500 text-white`;
-          case 'pause':
-            return `${baseClass} bg-yellow-600 hover:bg-yellow-500 text-white`;
-          case 'reset':
-            return `${baseClass} bg-red-600 hover:bg-red-500 text-white`;
-        }
-    }
-  };
-
-  // Get theme-specific overlay styles
-  const getOverlayClass = () => {
-    switch (themeId) {
-      case 'neon-tokyo':
-        return 'bg-black/80 rounded-lg border border-cyan-500/30';
-      case 'brutalist':
-        return 'bg-black/90 border-4 border-black';
-      case 'organic-flow':
-        return 'bg-white/20 backdrop-blur-md rounded-xl border border-white/30';
-      default:
-        return 'bg-black/80 rounded-lg';
-    }
-  };
-
-  // Get theme-specific text for title
-  const getTitleText = () => {
-    switch (themeId) {
-      case 'neon-tokyo':
-        return 'TETRIS';
-      case 'brutalist':
-        return 'TETRIS';
-      case 'organic-flow':
-        return 'Tetris';
-      default:
-        return 'TETRIS';
-    }
-  };
-
-  // Get help text styles
-  const getHelpTextClass = () => {
-    switch (themeId) {
-      case 'neon-tokyo':
-        return 'text-cyan-400/60';
-      case 'brutalist':
-        return 'text-gray-500';
-      case 'organic-flow':
-        return 'text-white/60';
-      default:
-        return 'text-gray-500';
-    }
-  };
+    // Random count for demo
+    setOnlineCount(Math.floor(Math.random() * 10) + 1);
+  }, []);
 
   return (
-    <div className={`${getBackgroundClass()} flex flex-col items-center justify-center p-4`}>
-      {/* Theme Selector */}
-      <div className="mb-4">
-        <ThemeSelector />
-      </div>
-
-      {/* Title */}
-      <h1 className={`${getTitleClass()} mb-6`}>
-        {getTitleText()}
-      </h1>
-
-      {/* Main game area */}
-      <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-center md:items-start">
-        {/* Game board */}
-        <div className="relative">
-          <GameBoard
-            board={gameState.board}
-            currentPiece={gameState.currentPiece}
-            isPaused={gameState.isPaused}
-          />
-
-          {/* Start screen overlay */}
-          {!gameState.isPlaying && !gameState.gameOver && (
-            <div className={`absolute inset-0 flex items-center justify-center ${getOverlayClass()}`}>
-              <div className="text-center p-4">
-                <p className={`text-xl font-bold mb-4 ${themeId === 'organic-flow' ? 'text-white' : 'text-white'}`}>
-                  {themeId === 'brutalist' ? 'PRESS START TO PLAY' : 'Press Start to Play'}
-                </p>
-                <button
-                  onClick={actions.startGame}
-                  className={`
-                    py-3 px-8
-                    ${themeId === 'neon-tokyo'
-                      ? 'bg-gradient-to-r from-cyan-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 border border-cyan-400'
-                      : themeId === 'brutalist'
-                      ? 'bg-white text-black border-4 border-black hover:bg-gray-200 font-black uppercase'
-                      : themeId === 'organic-flow'
-                      ? 'bg-white/30 hover:bg-white/40 backdrop-blur-sm border border-white/40 rounded-xl'
-                      : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500'}
-                    text-white font-bold text-lg
-                    rounded-lg
-                    transition-all duration-200
-                    transform hover:scale-105 active:scale-95
-                    shadow-lg
-                  `}
-                >
-                  {themeId === 'brutalist' ? 'START GAME' : 'Start Game'}
-                </button>
-                <p className={`text-sm mt-4 ${themeId === 'organic-flow' ? 'text-white/60' : 'text-gray-400'}`}>
-                  or press Enter
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Side panel */}
-        <div className="flex flex-row md:flex-col gap-4 md:gap-0 md:space-y-4 w-full md:w-auto">
-          <div className="flex-1 md:flex-none">
-            <NextPiece pieceType={gameState.nextPiece} />
-          </div>
-          <div className="flex-1 md:flex-none">
-            <ScorePanel
-              score={gameState.score}
-              lines={gameState.lines}
-              level={gameState.level}
-              highScore={gameState.highScore}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Game buttons for desktop */}
-      <div className="hidden md:flex gap-3 mt-6">
-        {!gameState.isPlaying ? (
-          <button
-            onClick={actions.startGame}
-            className={getButtonClass('start')}
-          >
-            {themeId === 'brutalist' ? 'START' : 'Start'}
-          </button>
-        ) : (
-          <button
-            onClick={actions.togglePause}
-            className={getButtonClass('pause')}
-          >
-            {themeId === 'brutalist'
-              ? (gameState.isPaused ? 'RESUME' : 'PAUSE')
-              : (gameState.isPaused ? 'Resume' : 'Pause')}
-          </button>
-        )}
-        <button
-          onClick={actions.resetGame}
-          className={getButtonClass('reset')}
-        >
-          {themeId === 'brutalist' ? 'RESET' : 'Reset'}
-        </button>
-      </div>
-
-      {/* Mobile controls */}
-      <Controls
-        onMoveLeft={actions.moveLeft}
-        onMoveRight={actions.moveRight}
-        onMoveDown={actions.moveDown}
-        onRotate={actions.rotate}
-        onHardDrop={actions.hardDrop}
-        onPause={actions.togglePause}
-        isPlaying={gameState.isPlaying}
-        isPaused={gameState.isPaused}
-      />
-
-      {/* Controls help */}
-      <div className={`hidden md:block mt-6 text-sm text-center ${getHelpTextClass()}`}>
-        <p>
-          <span className={themeId === 'organic-flow' ? 'text-white/70' : 'text-gray-400'}>Controls:</span>{' '}
-          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>Arrows</span> Move |{' '}
-          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>Up</span> Rotate |{' '}
-          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>Space</span> Hard Drop |{' '}
-          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>P</span> Pause |{' '}
-          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>1-3</span> Theme
+    <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-col items-center justify-center p-4">
+      {/* ASCII Art Logo */}
+      <div className="terminal-panel p-6 mb-8 text-center">
+        <pre className="text-[var(--terminal-green)] font-mono text-xs sm:text-sm leading-tight text-glow">
+{`████████╗███████╗████████╗██████╗ ██╗███████╗
+╚══██╔══╝██╔════╝╚══██╔══╝██╔══██╗██║██╔════╝
+   ██║   █████╗     ██║   ██████╔╝██║███████╗
+   ██║   ██╔══╝     ██║   ██╔══██╗██║╚════██║
+   ██║   ███████╗   ██║   ██║  ██║██║███████║
+   ╚═╝   ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝╚══════╝`}
+        </pre>
+        <p className="text-[var(--terminal-green)] font-mono text-lg mt-4 flicker">
+          BATTLE ARENA v2.0
         </p>
       </div>
 
-      {/* Game Over modal */}
-      {gameState.gameOver && (
-        <GameOver
-          score={gameState.score}
-          lines={gameState.lines}
-          level={gameState.level}
-          highScore={gameState.highScore}
-          isNewHighScore={isNewHighScore}
-          onRestart={actions.startGame}
-        />
-      )}
+      {/* Nickname Input */}
+      <div className="mb-8 w-full max-w-md">
+        <NicknameInput value={nickname} onChange={setNickname} />
+      </div>
+
+      {/* Mode Selection */}
+      <ModeSelector nickname={nickname} />
+
+      {/* Quick links */}
+      <div className="mt-8 flex gap-4">
+        <button
+          onClick={() => {/* TODO: Stats page */}}
+          className="text-[var(--terminal-gray)] font-mono text-sm hover:text-[var(--terminal-green)] transition-colors"
+        >
+          [STATYSTYKI]
+        </button>
+        <button
+          onClick={() => {/* TODO: History page */}}
+          className="text-[var(--terminal-gray)] font-mono text-sm hover:text-[var(--terminal-green)] transition-colors"
+        >
+          [HISTORIA]
+        </button>
+      </div>
+
+      {/* Status bar */}
+      <div className="mt-8 w-full max-w-md">
+        <div className="terminal-panel p-3">
+          <div className="flex items-center justify-between font-mono text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-[var(--terminal-gray)]">{'> STATUS:'}</span>
+              {isConnected ? (
+                <>
+                  <span className="text-[var(--terminal-green)]">ONLINE</span>
+                  <span className="w-2 h-2 bg-[var(--terminal-green)] rounded-full pulse-dot" />
+                </>
+              ) : (
+                <>
+                  <span className="text-[var(--terminal-orange)]">ŁĄCZENIE...</span>
+                  <span className="w-2 h-2 bg-[var(--terminal-orange)] rounded-full pulse-dot" />
+                </>
+              )}
+            </div>
+            <span className="text-[var(--terminal-gray)]">
+              {onlineCount} {onlineCount === 1 ? 'GRACZ' : 'GRACZY'} ONLINE
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-8 text-[var(--terminal-gray)] font-mono text-xs text-center">
+        <p>Sterowanie: Strzałki / WASD | Spacja = Hard Drop | P = Pauza</p>
+        <p className="mt-1">© 2024 TETRIS BATTLE ARENA</p>
+      </div>
     </div>
   );
 }

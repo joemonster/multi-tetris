@@ -30,6 +30,47 @@
   /* Fonts */
   --font-display: 'Orbitron', 'Courier New', monospace;
   --font-ui: 'Exo 2', Arial, sans-serif;
+
+  /* Terminal/Arcade theme colors */
+  --bg-terminal: #0a0a0a;
+  --bg-panel: #121212;
+  --terminal-green: #00ff41;
+  --terminal-gray: #4a4a4a;
+  --terminal-red: #ff3333;
+  --terminal-orange: #ffaa00;
+  --terminal-border: #1a1a1a;
+  --terminal-glow: rgba(0, 255, 65, 0.5);
+
+  /* Terminal Typography */
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  --font-terminal: 'Space Mono', monospace;
+}
+
+/* ===== ARCADE TERMINAL THEME ===== */
+[data-theme="arcade-terminal"] {
+  --background: #0a0a0a;
+  --foreground: #00ff41;
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #121212;
+  --text-primary: #00ff41;
+  --text-secondary: #4a4a4a;
+  --accent: #00ff41;
+
+  --block-I: #00ff41;
+  --block-O: #00ff41;
+  --block-T: #00ff41;
+  --block-S: #00ff41;
+  --block-Z: #00ff41;
+  --block-J: #00ff41;
+  --block-L: #00ff41;
+
+  --glow-intensity: 0 0 10px;
+  --block-shadow: 0 0 10px var(--terminal-glow);
+  --text-shadow: 0 0 10px var(--terminal-glow);
+  --border-radius: 0px;
+
+  --font-display: var(--font-mono);
+  --font-ui: var(--font-terminal);
 }
 
 @theme inline {
@@ -542,4 +583,251 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
+}
+
+/* ===== ARCADE TERMINAL STYLES ===== */
+
+/* CRT scan lines effect */
+.crt-effect::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Text glow */
+.text-glow {
+  text-shadow:
+    0 0 10px var(--terminal-glow),
+    0 0 20px var(--terminal-glow);
+}
+
+/* Border glow on hover */
+.border-glow-hover:hover {
+  box-shadow:
+    0 0 20px var(--terminal-glow),
+    inset 0 0 20px rgba(0, 255, 65, 0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+/* Flicker animation */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.flicker {
+  animation: flicker 2s infinite;
+}
+
+/* Typewriter cursor */
+@keyframes blink-cursor {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.cursor::after {
+  content: '▋';
+  animation: blink-cursor 1s infinite;
+  color: var(--terminal-green);
+}
+
+/* Terminal input */
+.terminal-input {
+  background: var(--bg-terminal);
+  border: 1px solid var(--terminal-green);
+  color: var(--terminal-green);
+  font-family: var(--font-mono);
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+}
+
+.terminal-input:focus {
+  outline: none;
+  box-shadow: 0 0 10px var(--terminal-glow);
+}
+
+.terminal-input::placeholder {
+  color: var(--terminal-gray);
+}
+
+/* Terminal button */
+.terminal-button {
+  background: var(--bg-terminal);
+  border: 1px solid var(--terminal-green);
+  color: var(--terminal-green);
+  font-family: var(--font-mono);
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.terminal-button:hover {
+  background: var(--terminal-green);
+  color: var(--bg-terminal);
+  box-shadow: 0 0 20px var(--terminal-glow);
+}
+
+.terminal-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.terminal-button:disabled:hover {
+  background: var(--bg-terminal);
+  color: var(--terminal-green);
+  box-shadow: none;
+}
+
+/* Terminal panel */
+.terminal-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--terminal-border);
+  font-family: var(--font-mono);
+}
+
+/* Terminal card (for mode selection) */
+.terminal-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--terminal-border);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.terminal-card:hover {
+  border-color: var(--terminal-green);
+  box-shadow: 0 0 20px var(--terminal-glow),
+              inset 0 0 20px rgba(0, 255, 65, 0.05);
+}
+
+.terminal-card:hover .terminal-card-title {
+  text-shadow: 0 0 10px var(--terminal-glow);
+}
+
+/* Pulse animation for status dot */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* Progress bar */
+.terminal-progress {
+  background: var(--terminal-border);
+  height: 4px;
+  overflow: hidden;
+}
+
+.terminal-progress-bar {
+  background: var(--terminal-green);
+  height: 100%;
+  box-shadow: 0 0 10px var(--terminal-glow);
+  transition: width 0.3s ease;
+}
+
+/* Loading animation */
+@keyframes loading-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.terminal-loading {
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--terminal-green), transparent);
+  animation: loading-bar 1.5s ease-in-out infinite;
+}
+
+/* ASCII border */
+.ascii-border {
+  border: 1px solid var(--terminal-green);
+  position: relative;
+}
+
+.ascii-border::before {
+  content: '╔';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  color: var(--terminal-green);
+}
+
+.ascii-border::after {
+  content: '╗';
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  color: var(--terminal-green);
+}
+
+/* Countdown animation */
+@keyframes countdown-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+.countdown-number {
+  animation: countdown-pulse 1s ease-in-out infinite;
+  text-shadow: 0 0 20px var(--terminal-glow);
+}
+
+/* Toast notification */
+.terminal-toast {
+  background: var(--bg-panel);
+  border: 1px solid var(--terminal-orange);
+  color: var(--terminal-orange);
+  font-family: var(--font-mono);
+  padding: 1rem;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Opponent board (smaller scale) */
+.opponent-board {
+  transform: scale(0.6);
+  transform-origin: top left;
+}
+
+/* VS text */
+.vs-text {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  color: var(--terminal-green);
+  text-shadow: 0 0 20px var(--terminal-glow);
+  letter-spacing: 0.2em;
 }
