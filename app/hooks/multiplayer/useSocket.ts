@@ -13,8 +13,9 @@ export function useSocket() {
   const [socket, setSocket] = useState<PartySocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [onlineCount, setOnlineCount] = useState(0);
   const handlersRef = useRef<MessageHandler>({});
-  const { addLog } = useDebug();
+  const { addLog, setOnlineCount: setDebugOnlineCount } = useDebug();
 
   useEffect(() => {
     const s = getSocket();
@@ -51,12 +52,25 @@ export function useSocket() {
     const onMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
-        addLog({
-          type: 'received',
-          title: `Odebrano: ${data.type}`,
-          data: data,
-          color: 'blue',
-        });
+
+        // Handle online_count specially
+        if (data.type === 'online_count') {
+          setOnlineCount(data.count);
+          setDebugOnlineCount(data.count);
+          addLog({
+            type: 'info',
+            title: `Gracze online: ${data.count}`,
+            color: 'blue',
+          });
+        } else {
+          addLog({
+            type: 'received',
+            title: `Odebrano: ${data.type}`,
+            data: data,
+            color: 'blue',
+          });
+        }
+
         const handler = handlersRef.current[data.type];
         if (handler) {
           handler(data);
@@ -125,6 +139,7 @@ export function useSocket() {
     socket,
     isConnected,
     error,
+    onlineCount,
     emit,
     on,
     off,

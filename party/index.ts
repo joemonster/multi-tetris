@@ -30,6 +30,13 @@ export default class TetrisServer implements Party.Server {
   onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
     console.log(`Player connected: ${conn.id}`);
     this.playerConnections.set(conn.id, conn);
+
+    // Send current online count to new player
+    const onlineCount = this.playerConnections.size;
+    conn.send(JSON.stringify({ type: 'online_count', count: onlineCount }));
+
+    // Broadcast updated count to all players
+    this.broadcastOnlineCount();
   }
 
   onClose(conn: Party.Connection) {
@@ -77,6 +84,9 @@ export default class TetrisServer implements Party.Server {
     }
 
     this.playerConnections.delete(conn.id);
+
+    // Broadcast updated count to all players
+    this.broadcastOnlineCount();
   }
 
   onMessage(message: string, sender: Party.Connection) {
@@ -288,6 +298,13 @@ export default class TetrisServer implements Party.Server {
         conn.send(JSON.stringify({ type: 'queue_update', position }));
       }
       position++;
+    });
+  }
+
+  broadcastOnlineCount() {
+    const onlineCount = this.playerConnections.size;
+    this.playerConnections.forEach((conn) => {
+      conn.send(JSON.stringify({ type: 'online_count', count: onlineCount }));
     });
   }
 }

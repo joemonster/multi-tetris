@@ -7,17 +7,7 @@ import { ServerStatusPanel } from './components/debug/ServerStatusPanel';
 import { useDebug } from './contexts/DebugContext';
 
 export default function LandingPage() {
-  const [onlineCount, setOnlineCount] = useState(0);
-  const { isConnected } = useSocket();
-  const { setOnlineCount: setDebugOnlineCount } = useDebug();
-
-  // Simulate online count (in production, get from server)
-  useEffect(() => {
-    // Random count for demo
-    const count = Math.floor(Math.random() * 10) + 1;
-    setOnlineCount(count);
-    setDebugOnlineCount(count);
-  }, [setDebugOnlineCount]);
+  const { isConnected, onlineCount } = useSocket();
 
   return (
     <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-col items-center justify-center p-4">
