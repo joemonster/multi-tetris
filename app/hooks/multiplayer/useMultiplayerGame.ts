@@ -27,6 +27,8 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   const [gameEndData, setGameEndData] = useState<{ winner: string; reason: string; roomId: string } | null>(null);
   const [rematchRequest, setRematchRequest] = useState<{ playerId: string; playerNickname: string } | null>(null);
   const [rematchTimeout, setRematchTimeout] = useState<number>(10);
+  const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
+  const [rematchWaitTimeout, setRematchWaitTimeout] = useState<number>(10);
 
   // Load opponent nickname from localStorage on mount
   useEffect(() => {
@@ -193,6 +195,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       // Reset game state
       setGameEndData(null);
       setRematchRequest(null);
+      setWaitingForRematchResponse(false);
       // Reset the ref flag for rematch
       gameStartTimeSetRef.current = false;
       // Use local time to avoid clock skew
@@ -214,6 +217,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
 
     const handleRematchRejected = () => {
       setRematchRequest(null);
+      setWaitingForRematchResponse(false);
       addLog({
         type: 'event',
         title: 'Rematch odrzucony',
@@ -273,6 +277,30 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     ? opponentNickname
     : null;
 
+  // Function to send rematch request
+  const sendRematchRequest = useCallback(() => {
+    emit('rematch_request', { roomId });
+    setWaitingForRematchResponse(true);
+
+    // Start countdown
+    setRematchWaitTimeout(10);
+    const interval = setInterval(() => {
+      setRematchWaitTimeout((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    addLog({
+      type: 'event',
+      title: 'Wysłano prośbę o rematch',
+      color: 'green',
+    });
+  }, [emit, roomId, addLog]);
+
   return {
     // Player game state (from useGameLogic)
     gameState: gameLogic.gameState,
@@ -302,5 +330,10 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     gameEndData,
     rematchRequest,
     rematchTimeout,
+
+    // Rematch waiting state
+    waitingForRematchResponse,
+    rematchWaitTimeout,
+    sendRematchRequest,
   };
 }

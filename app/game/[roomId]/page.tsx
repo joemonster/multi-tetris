@@ -48,6 +48,9 @@ export default function MultiplayerGame() {
     gameEndData,
     rematchRequest,
     rematchTimeout,
+    waitingForRematchResponse,
+    rematchWaitTimeout,
+    sendRematchRequest,
   } = useMultiplayerGame({ roomId, nickname });
 
   // Setup keyboard controls
@@ -64,7 +67,7 @@ export default function MultiplayerGame() {
 
   // Handle rematch request
   const handleRematchRequest = () => {
-    emit('rematch_request', { roomId });
+    sendRematchRequest();
   };
 
   // Handle rematch accept
@@ -332,6 +335,8 @@ export default function MultiplayerGame() {
           rematchTimeout={rematchTimeout}
           onRematchAccept={handleRematchAccept}
           onRematchReject={handleRematchReject}
+          waitingForRematchResponse={waitingForRematchResponse}
+          rematchWaitTimeout={rematchWaitTimeout}
         />
       )}
 

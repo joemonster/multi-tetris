@@ -22,6 +22,8 @@ interface GameEndModalProps {
   rematchTimeout?: number;
   onRematchAccept?: () => void;
   onRematchReject?: () => void;
+  waitingForRematchResponse?: boolean;
+  rematchWaitTimeout?: number;
 }
 
 export function GameEndModal({
@@ -40,6 +42,8 @@ export function GameEndModal({
   rematchTimeout,
   onRematchAccept,
   onRematchReject,
+  waitingForRematchResponse,
+  rematchWaitTimeout,
 }: GameEndModalProps) {
   const isWinner = winner === playerNickname;
 
@@ -113,8 +117,26 @@ export function GameEndModal({
           </div>
         </div>
 
+        {/* Waiting for rematch response */}
+        {waitingForRematchResponse && (
+          <div className="terminal-panel p-4 mb-6 bg-[var(--terminal-green)]/10 border-[var(--terminal-green)]">
+            <div className="text-[var(--terminal-green)] font-mono font-bold mb-3 flicker">
+              ⏳ Oczekiwanie na odpowiedź przeciwnika...
+            </div>
+            <div className="text-[var(--terminal-gray)] font-mono text-sm">
+              Timeout za {rematchWaitTimeout}s
+            </div>
+            <div className="mt-4 w-full bg-[var(--terminal-gray)]/20 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-[var(--terminal-green)] h-full transition-all duration-1000"
+                style={{ width: `${(rematchWaitTimeout || 0) * 10}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Rematch Request Display */}
-        {rematchRequest && (
+        {rematchRequest && !waitingForRematchResponse && (
           <div className="terminal-panel p-4 mb-6 bg-[var(--terminal-orange)]/10 border-[var(--terminal-orange)]">
             <div className="text-[var(--terminal-orange)] font-mono font-bold mb-3">
               {rematchRequest.playerNickname} chce grać ponownie!
@@ -140,7 +162,7 @@ export function GameEndModal({
         )}
 
         {/* Action Buttons */}
-        {!rematchRequest && (
+        {!rematchRequest && !waitingForRematchResponse && (
           <div className="flex gap-4 justify-center">
             <button
               onClick={onRematchRequest}
