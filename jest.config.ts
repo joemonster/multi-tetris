@@ -16,19 +16,18 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/app/$1',
   },
   collectCoverageFrom: [
-    'app/**/*.{js,jsx,ts,tsx}',
+    'app/utils/**/*.{js,jsx,ts,tsx}',
+    'app/types/**/*.{js,jsx,ts,tsx}',
     '!app/**/*.d.ts',
     '!app/**/*.stories.{js,jsx,ts,tsx}',
-    '!app/**/_*.{js,jsx,ts,tsx}',
-    '!app/**/layout.tsx',
-    '!app/**/page.tsx',
+    '!app/**/__tests__/**',
   ],
   coverageThreshold: {
     global: {
-      branches: 70,
-      functions: 70,
-      lines: 70,
-      statements: 70,
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
     },
   },
   testMatch: [

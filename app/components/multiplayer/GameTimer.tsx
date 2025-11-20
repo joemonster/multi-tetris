@@ -26,8 +26,7 @@ export function GameTimer({ isRunning, startTime, onTimeUpdate }: GameTimerProps
     if (!isRunning) return;
 
     // Start local timer even if startTime not yet received
-    let localStartTime = startTimeRef.current || Date.now();
-    let interval: NodeJS.Timeout;
+    const localStartTime = startTimeRef.current || Date.now();
 
     const updateTime = () => {
       const now = Date.now();
@@ -41,7 +40,7 @@ export function GameTimer({ isRunning, startTime, onTimeUpdate }: GameTimerProps
     updateTime();
 
     // Use setInterval (not RAF) - works even when tab is not focused
-    interval = setInterval(updateTime, 100);
+    const interval = setInterval(updateTime, 100);
 
     return () => clearInterval(interval);
   }, [isRunning, onTimeUpdate]);
