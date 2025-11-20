@@ -364,12 +364,15 @@ export const useGameLogic = () => {
     }
 
     const speed = calculateSpeed(gameState.level);
+    // Initialize with current time to handle tab becoming inactive
+    lastTickRef.current = Date.now();
 
-    const gameLoop = (timestamp: number) => {
-      if (timestamp - lastTickRef.current >= speed) {
+    const gameLoop = () => {
+      const now = Date.now();
+      if (now - lastTickRef.current >= speed) {
         moveDown();
         checkLock();
-        lastTickRef.current = timestamp;
+        lastTickRef.current = now;
       }
       gameLoopRef.current = requestAnimationFrame(gameLoop);
     };
