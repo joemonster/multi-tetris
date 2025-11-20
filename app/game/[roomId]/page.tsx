@@ -43,6 +43,7 @@ export default function MultiplayerGame() {
     isOpponentLeading,
     leaderNickname,
     gameStartTime,
+    emit,
   } = useMultiplayerGame({ roomId, nickname });
 
   // Setup keyboard controls
@@ -106,7 +107,15 @@ export default function MultiplayerGame() {
 
         {/* Center - Timer and Leader */}
         <div className="flex flex-col items-center gap-4">
-          <GameTimer isRunning={gameState.isPlaying && !gameState.gameOver} startTime={gameStartTime} />
+          <GameTimer
+            isRunning={gameState.isPlaying && !gameState.gameOver}
+            startTime={gameStartTime}
+            maxDuration={300000}
+            onTimeUp={() => {
+              // Send game_over event when time is up
+              emit('game_over', { roomId, reason: 'time_limit' });
+            }}
+          />
 
           {leaderNickname && (
             <div className="terminal-panel p-2 text-center">

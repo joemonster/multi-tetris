@@ -207,5 +207,8 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     // Player info
     playerNickname: nickname,
     roomId,
+
+    // Socket communication
+    emit,
   };
 }

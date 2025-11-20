@@ -12,6 +12,11 @@ interface GameRoom {
   nicknames: string[];
   createdAt: number;
   startTime?: number;
+  gameOverPlayers: Set<string>; // Players who have game over
+  rematchRequested?: {
+    playerId: string;
+    timestamp: number;
+  };
 }
 
 interface Message {
@@ -109,7 +114,7 @@ export default class TetrisServer implements Party.Server {
         this.handleGameUpdate(sender, data);
         break;
       case 'game_over':
-        this.handleGameOver(sender, data.roomId as string);
+        this.handleGameOver(sender, data.roomId as string, data);
         break;
       case 'leave_game':
         this.handleLeaveGame(sender, data.roomId as string);
@@ -188,25 +193,46 @@ export default class TetrisServer implements Party.Server {
     }
   }
 
-  handleGameOver(conn: Party.Connection, roomId: string) {
+  handleGameOver(conn: Party.Connection, roomId: string, data?: Message) {
     const game = this.games.get(roomId);
     if (!game) return;
 
     const playerIndex = game.players.indexOf(conn.id);
+    if (playerIndex === -1) return; // Player not in this game
+
+    // Mark player as game over
+    game.gameOverPlayers.add(conn.id);
+
     const opponentIndex = playerIndex === 0 ? 1 : 0;
+    const opponentId = game.players[opponentIndex];
+    const playerNickname = game.nicknames[playerIndex];
     const opponentNickname = game.nicknames[opponentIndex];
 
-    // Notify both players
-    game.players.forEach(playerId => {
-      const playerConn = this.playerConnections.get(playerId);
-      if (playerConn) {
-        playerConn.send(JSON.stringify({
-          type: 'game_over',
-          winner: opponentNickname,
-          reason: 'Przeciwnik zakończył grę'
-        }));
-      }
-    });
+    console.log(`Player ${playerNickname} game over in ${roomId}`);
+
+    const reason = (data?.reason as string) || 'opponent_game_over';
+
+    // Notify both players - opponent wins
+    const opponentConn = this.playerConnections.get(opponentId);
+    if (opponentConn) {
+      opponentConn.send(JSON.stringify({
+        type: 'game_end',
+        winner: opponentNickname,
+        reason: reason === 'time_limit' ? 'Limit czasu' : `${playerNickname} przegrał`,
+        roomId
+      }));
+    }
+
+    // Notify the loser
+    const loserConn = this.playerConnections.get(conn.id);
+    if (loserConn) {
+      loserConn.send(JSON.stringify({
+        type: 'game_end',
+        winner: opponentNickname,
+        reason: reason === 'time_limit' ? 'Limit czasu' : `${playerNickname} przegrał`,
+        roomId
+      }));
+    }
   }
 
   handleLeaveGame(conn: Party.Connection, roomId: string) {
@@ -243,7 +269,8 @@ export default class TetrisServer implements Party.Server {
     this.games.set(roomId, {
       players: [player1Id, player2Id],
       nicknames: [player1Data.nickname, player2Data.nickname],
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      gameOverPlayers: new Set(),
     });
 
     this.playerRooms.set(player1Id, roomId);
