@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from './useSocket';
+import { useDebug } from '../../contexts/DebugContext';
 
 interface MatchFoundData {
   opponent: string;
@@ -12,6 +13,7 @@ export type MatchmakingState = 'idle' | 'searching' | 'found' | 'timeout' | 'err
 
 export function useMatchmaking() {
   const { socket, isConnected, emit, on, off } = useSocket();
+  const { addLog } = useDebug();
   const [state, setState] = useState<MatchmakingState>('idle');
   const [queuePosition, setQueuePosition] = useState(0);
   const [matchData, setMatchData] = useState<MatchFoundData | null>(null);
@@ -23,24 +25,51 @@ export function useMatchmaking() {
     const handleQueueJoined = (data: { position: number }) => {
       setState('searching');
       setQueuePosition(data.position);
+      addLog({
+        type: 'event',
+        title: `Dołączono do kolejki (pozycja: ${data.position})`,
+        color: 'green',
+      });
     };
 
     const handleQueueUpdate = (data: { position: number }) => {
       setQueuePosition(data.position);
+      addLog({
+        type: 'event',
+        title: `Aktualizacja pozycji (${data.position})`,
+        color: 'blue',
+      });
     };
 
     const handleMatchFound = (data: MatchFoundData) => {
       setState('found');
       setMatchData(data);
+      addLog({
+        type: 'event',
+        title: `Match znaleziony! vs ${data.opponent}`,
+        data: { roomId: data.roomId },
+        color: 'green',
+      });
     };
 
     const handleTimeout = () => {
       setState('timeout');
+      addLog({
+        type: 'event',
+        title: 'Timeout - nie znaleziono przeciwnika',
+        color: 'orange',
+      });
     };
 
     const handleError = (data: { message: string }) => {
       setState('error');
       setError(data.message);
+      addLog({
+        type: 'event',
+        title: 'Błąd matchmakingu',
+        data: { message: data.message },
+        color: 'orange',
+      });
     };
 
     on('queue_joined', handleQueueJoined);
@@ -56,7 +85,7 @@ export function useMatchmaking() {
       off('queue_timeout');
       off('error');
     };
-  }, [socket, on, off]);
+  }, [socket, on, off, addLog]);
 
   const findGame = useCallback((nickname: string) => {
     if (!isConnected) {

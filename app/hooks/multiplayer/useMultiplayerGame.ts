@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameLogic } from '../useGameLogic';
 import { useSocket } from './useSocket';
 import { OpponentState, GameUpdateData } from '../../lib/socket/client';
+import { useDebug } from '../../contexts/DebugContext';
 
 interface UseMultiplayerGameProps {
   roomId: string;
@@ -14,6 +15,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   // Use existing game logic
   const gameLogic = useGameLogic();
   const { socket, isConnected, emit, on, off } = useSocket();
+  const { addLog } = useDebug();
 
   // Multiplayer state
   const [opponentState, setOpponentState] = useState<OpponentState | null>(null);
@@ -87,23 +89,51 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
 
     const handleOpponentUpdate = (data: OpponentState) => {
       setOpponentState(data);
+      addLog({
+        type: 'event',
+        title: 'Update od przeciwnika',
+        data: { score: data.score, lines: data.lines },
+        color: 'blue',
+      });
     };
 
     const handleOpponentDisconnected = () => {
       setIsOpponentDisconnected(true);
+      addLog({
+        type: 'event',
+        title: 'Przeciwnik rozłączony',
+        color: 'orange',
+      });
     };
 
     const handleOpponentReconnected = () => {
       setIsOpponentDisconnected(false);
+      addLog({
+        type: 'event',
+        title: 'Przeciwnik ponownie połączony',
+        color: 'green',
+      });
     };
 
     const handleGameOver = (data: { winner: string; reason: string }) => {
       setGameResult(data);
+      addLog({
+        type: 'event',
+        title: 'Koniec gry',
+        data: { winner: data.winner, reason: data.reason },
+        color: 'orange',
+      });
     };
 
     const handleGameStart = (data: { roomId: string; opponent?: string }) => {
       if (data.opponent) {
         setOpponentNickname(data.opponent);
+        addLog({
+          type: 'event',
+          title: `Gra rozpoczęta vs ${data.opponent}`,
+          data: { roomId: data.roomId },
+          color: 'green',
+        });
       }
       // Game is auto-started, but this can serve as a backup
       if (!gameStarted) {
@@ -125,7 +155,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       off('game_over');
       off('game_start');
     };
-  }, [socket, on, off, gameLogic.actions, gameStarted]);
+  }, [socket, on, off, gameLogic.actions, gameStarted, addLog]);
 
   // Leave game on unmount
   useEffect(() => {

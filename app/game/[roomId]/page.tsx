@@ -10,6 +10,7 @@ import { Controls } from '../../components/Controls';
 import { OpponentBoard } from '../../components/multiplayer/OpponentBoard';
 import { PlayerCard } from '../../components/multiplayer/PlayerCard';
 import { GameTimer } from '../../components/multiplayer/GameTimer';
+import { GameDebugPanel } from '../../components/debug/GameDebugPanel';
 
 export default function MultiplayerGame() {
   const params = useParams();
@@ -277,6 +278,9 @@ export default function MultiplayerGame() {
           </div>
         </div>
       )}
+
+      {/* Debug Panel */}
+      <GameDebugPanel />
     </div>
   );
 }

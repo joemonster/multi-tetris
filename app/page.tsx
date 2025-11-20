@@ -4,20 +4,26 @@ import React, { useState, useEffect } from 'react';
 import { NicknameInput } from './components/multiplayer/NicknameInput';
 import { ModeSelector } from './components/multiplayer/ModeSelector';
 import { useSocket } from './hooks/multiplayer/useSocket';
+import { ServerStatusPanel } from './components/debug/ServerStatusPanel';
+import { useDebug } from './contexts/DebugContext';
 
 export default function LandingPage() {
   const [nickname, setNickname] = useState('');
   const [onlineCount, setOnlineCount] = useState(0);
   const { isConnected } = useSocket();
+  const { setOnlineCount: setDebugOnlineCount } = useDebug();
 
   // Simulate online count (in production, get from server)
   useEffect(() => {
     // Random count for demo
-    setOnlineCount(Math.floor(Math.random() * 10) + 1);
-  }, []);
+    const count = Math.floor(Math.random() * 10) + 1;
+    setOnlineCount(count);
+    setDebugOnlineCount(count);
+  }, [setDebugOnlineCount]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-row">
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
       {/* ASCII Art Logo */}
       <div className="terminal-panel p-6 mb-8 text-center">
         <pre className="text-[var(--terminal-green)] font-mono text-xs sm:text-sm leading-tight text-glow">
@@ -87,6 +93,10 @@ export default function LandingPage() {
         <p>Sterowanie: Strzałki / WASD | Spacja = Hard Drop | P = Pauza</p>
         <p className="mt-1">© 2024 TETRIS BATTLE ARENA</p>
       </div>
+      </div>
+
+      {/* Debug Panel Sidebar */}
+      <ServerStatusPanel />
     </div>
   );
 }

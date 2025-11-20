@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import PartySocket from 'partysocket';
 import { getSocket, disconnectSocket } from '../../lib/socket/client';
+import { useDebug } from '../../contexts/DebugContext';
 
 interface MessageHandler {
   [key: string]: (data: unknown) => void;
@@ -13,6 +14,7 @@ export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const handlersRef = useRef<MessageHandler>({});
+  const { addLog } = useDebug();
 
   useEffect(() => {
     const s = getSocket();
@@ -21,19 +23,40 @@ export function useSocket() {
     const onOpen = () => {
       setIsConnected(true);
       setError(null);
+      addLog({
+        type: 'event',
+        title: 'Połączenie nawiązane',
+        color: 'green',
+      });
     };
 
     const onClose = () => {
       setIsConnected(false);
+      addLog({
+        type: 'event',
+        title: 'Połączenie zamknięte',
+        color: 'orange',
+      });
     };
 
     const onError = () => {
       setError('Błąd połączenia');
+      addLog({
+        type: 'event',
+        title: 'Błąd połączenia',
+        color: 'orange',
+      });
     };
 
     const onMessage = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data);
+        addLog({
+          type: 'received',
+          title: `Odebrano: ${data.type}`,
+          data: data,
+          color: 'blue',
+        });
         const handler = handlersRef.current[data.type];
         if (handler) {
           handler(data);
@@ -59,12 +82,17 @@ export function useSocket() {
       s.removeEventListener('error', onError);
       s.removeEventListener('message', onMessage);
     };
-  }, []);
+  }, [addLog]);
 
   const disconnect = useCallback(() => {
     disconnectSocket();
     setIsConnected(false);
-  }, []);
+    addLog({
+      type: 'event',
+      title: 'Rozłączono',
+      color: 'orange',
+    });
+  }, [addLog]);
 
   const emit = useCallback((event: string, data?: unknown) => {
     if (socket?.readyState === WebSocket.OPEN) {
@@ -73,8 +101,14 @@ export function useSocket() {
         ...(data as object || {})
       };
       socket.send(JSON.stringify(message));
+      addLog({
+        type: 'sent',
+        title: `Wysłano: ${event}`,
+        data: message,
+        color: 'green',
+      });
     }
-  }, [socket]);
+  }, [socket, addLog]);
 
   const on = useCallback(<T = unknown>(event: string, callback: (data: T) => void) => {
     handlersRef.current[event] = callback as (data: unknown) => void;

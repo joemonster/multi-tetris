@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { QueueStatus } from '../components/multiplayer/QueueStatus';
 import { MatchFound } from '../components/multiplayer/MatchFound';
 import { useMatchmaking } from '../hooks/multiplayer/useMatchmaking';
+import { ServerStatusPanel } from '../components/debug/ServerStatusPanel';
+import { useDebug } from '../contexts/DebugContext';
 
 export default function QueuePage() {
   const router = useRouter();
@@ -68,7 +70,8 @@ export default function QueuePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-row">
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
       {/* Match found overlay */}
       {state === 'found' && matchData && (
         <MatchFound
@@ -148,6 +151,10 @@ export default function QueuePage() {
           </div>
         </div>
       )}
+      </div>
+
+      {/* Debug Panel Sidebar */}
+      <ServerStatusPanel />
     </div>
   );
 }

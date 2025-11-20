@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { DebugProvider } from "./contexts/DebugContext";
 
 export const metadata: Metadata = {
   title: "Tetris - Classic Block Puzzle Game",
@@ -16,9 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="neon-tokyo">
       <body className="antialiased">
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <DebugProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+        </DebugProvider>
       </body>
     </html>
   );
