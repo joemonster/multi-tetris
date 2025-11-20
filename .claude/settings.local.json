@@ -14,7 +14,12 @@
       "Bash(npm install:*)",
       "Bash(git pull:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npx partykit deploy)",
+      "Bash(npx partykit login:*)",
+      "Bash(npm run deploy:party:*)",
+      "Bash(bash -c \"npx partykit deploy\")",
+      "Bash(.env.local)"
     ],
     "deny": [],
     "ask": []

@@ -34,13 +34,13 @@ export default function LandingPage() {
       <div className="mt-8 flex gap-4">
         <button
           onClick={() => {/* TODO: Stats page */}}
-          className="text-[var(--terminal-gray)] font-mono text-sm hover:text-[var(--terminal-green)] transition-colors"
+          className="text-[var(--terminal-gray)] font-mono text-sm hover:text-[var(--terminal-green)] transition-colors cursor-pointer"
         >
           [STATYSTYKI]
         </button>
         <button
           onClick={() => {/* TODO: History page */}}
-          className="text-[var(--terminal-gray)] font-mono text-sm hover:text-[var(--terminal-green)] transition-colors"
+          className="text-[var(--terminal-gray)] font-mono text-sm hover:text-[var(--terminal-green)] transition-colors cursor-pointer"
         >
           [HISTORIA]
         </button>

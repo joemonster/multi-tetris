@@ -155,6 +155,8 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
 
     const handleGameEnd = (data: { winner: string; reason: string; roomId: string }) => {
       setGameEndData(data);
+      // Stop the game immediately for both players
+      gameLogic.actions.resetGame();
       addLog({
         type: 'event',
         title: `Koniec gry - ${data.winner} wygrywa`,
