@@ -67,6 +67,7 @@ export const useGameLogic = () => {
   const [gameState, setGameState] = useState<GameState>(createInitialState);
   const gameLoopRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(0);
+  const lockTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load high score and set initial random piece on mount (client-side only)
   useEffect(() => {
@@ -82,6 +83,7 @@ export const useGameLogic = () => {
       const nextPiece = getRandomTetromino();
 
       // Check if game is over - piece can't be placed at its position
+      // First check with standard validation
       if (!isValidPosition(prev.board, newPiece.shape, newPiece.position)) {
         const newHighScore = Math.max(prev.score, prev.highScore);
         if (prev.score > prev.highScore) {
@@ -94,6 +96,34 @@ export const useGameLogic = () => {
           currentPiece: null,
           highScore: newHighScore,
         };
+      }
+
+      // Additional check: Even if piece is above board (y=-1), check if any cells
+      // that would be ON the board collide with existing pieces
+      for (let y = 0; y < newPiece.shape.length; y++) {
+        for (let x = 0; x < newPiece.shape[y].length; x++) {
+          if (newPiece.shape[y][x]) {
+            const boardY = newPiece.position.y + y;
+            const boardX = newPiece.position.x + x;
+
+            // If this cell is on the visible board and collides, game over
+            if (boardY >= 0 && boardX >= 0 && boardX < BOARD_WIDTH) {
+              if (prev.board[boardY] && prev.board[boardY][boardX] && prev.board[boardY][boardX].filled) {
+                const newHighScore = Math.max(prev.score, prev.highScore);
+                if (prev.score > prev.highScore) {
+                  saveHighScore(prev.score);
+                }
+                return {
+                  ...prev,
+                  gameOver: true,
+                  isPlaying: false,
+                  currentPiece: null,
+                  highScore: newHighScore,
+                };
+              }
+            }
+          }
+        }
       }
 
       return {
@@ -185,7 +215,14 @@ export const useGameLogic = () => {
   // Check if piece should lock (called after moveDown)
   const checkLock = useCallback(() => {
     setGameState(prev => {
-      if (!prev.currentPiece || prev.isPaused || !prev.isPlaying) return prev;
+      if (!prev.currentPiece || prev.isPaused || !prev.isPlaying) {
+        // Clear lock timer if game is paused or not playing
+        if (lockTimerRef.current) {
+          clearTimeout(lockTimerRef.current);
+          lockTimerRef.current = null;
+        }
+        return prev;
+      }
 
       const belowPosition = {
         x: prev.currentPiece.position.x,
@@ -193,8 +230,21 @@ export const useGameLogic = () => {
       };
 
       if (!isValidPosition(prev.board, prev.currentPiece.shape, belowPosition)) {
-        // Lock the piece
-        setTimeout(lockPiece, 0);
+        // Piece is touching ground - start lock delay if not already started
+        if (!lockTimerRef.current) {
+          // Lock delay = same as drop speed (based on level)
+          const lockDelay = calculateSpeed(prev.level);
+          lockTimerRef.current = setTimeout(() => {
+            lockPiece();
+            lockTimerRef.current = null;
+          }, lockDelay);
+        }
+      } else {
+        // Piece is not touching ground - cancel lock timer
+        if (lockTimerRef.current) {
+          clearTimeout(lockTimerRef.current);
+          lockTimerRef.current = null;
+        }
       }
 
       return prev;
@@ -223,7 +273,9 @@ export const useGameLogic = () => {
 
       return prev;
     });
-  }, []);
+    // After moving, recheck lock status (may cancel or restart timer)
+    setTimeout(() => checkLock(), 0);
+  }, [checkLock]);
 
   // Move piece right
   const moveRight = useCallback(() => {
@@ -247,7 +299,9 @@ export const useGameLogic = () => {
 
       return prev;
     });
-  }, []);
+    // After moving, recheck lock status (may cancel or restart timer)
+    setTimeout(() => checkLock(), 0);
+  }, [checkLock]);
 
   // Rotate piece
   const rotate = useCallback(() => {
@@ -271,10 +325,18 @@ export const useGameLogic = () => {
 
       return prev;
     });
-  }, []);
+    // After rotating, recheck lock status (may cancel or restart timer)
+    setTimeout(() => checkLock(), 0);
+  }, [checkLock]);
 
   // Hard drop
   const hardDrop = useCallback(() => {
+    // Clear lock timer since we're locking immediately
+    if (lockTimerRef.current) {
+      clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = null;
+    }
+
     setGameState(prev => {
       if (!prev.currentPiece || prev.isPaused || !prev.isPlaying) return prev;
 
@@ -333,6 +395,11 @@ export const useGameLogic = () => {
 
   // Start game
   const startGame = useCallback(() => {
+    // Clear lock timer
+    if (lockTimerRef.current) {
+      clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = null;
+    }
     setGameState(prev => ({
       ...createInitialState(),
       highScore: prev.highScore,
@@ -347,6 +414,11 @@ export const useGameLogic = () => {
     if (gameLoopRef.current) {
       cancelAnimationFrame(gameLoopRef.current);
     }
+    // Clear lock timer
+    if (lockTimerRef.current) {
+      clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = null;
+    }
     setGameState(prev => ({
       ...createInitialState(),
       highScore: prev.highScore,
@@ -359,6 +431,10 @@ export const useGameLogic = () => {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current as unknown as NodeJS.Timeout);
         gameLoopRef.current = null;
+      }
+      if (lockTimerRef.current) {
+        clearTimeout(lockTimerRef.current);
+        lockTimerRef.current = null;
       }
       return;
     }
@@ -383,6 +459,10 @@ export const useGameLogic = () => {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current as unknown as NodeJS.Timeout);
         gameLoopRef.current = null;
+      }
+      if (lockTimerRef.current) {
+        clearTimeout(lockTimerRef.current);
+        lockTimerRef.current = null;
       }
     };
   }, [gameState.isPlaying, gameState.isPaused, gameState.gameOver, gameState.level, moveDown, checkLock]);

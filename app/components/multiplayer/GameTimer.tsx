@@ -16,9 +16,9 @@ export function GameTimer({ isRunning, startTime, maxDuration = 300000, onTimeUp
   const startTimeRef = useRef<number | undefined>(undefined);
   const hasCalledTimeUpRef = useRef(false);
 
-  // Update ref when startTime changes
+  // Update ref when startTime changes (only once - don't reset if already set)
   useEffect(() => {
-    if (startTime) {
+    if (startTime && !startTimeRef.current) {
       startTimeRef.current = startTime;
       hasCalledTimeUpRef.current = false;
     }

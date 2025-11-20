@@ -107,13 +107,13 @@ export function NicknameModal({ isOpen, onClose, onConfirm }: NicknameModalProps
           <div className="flex gap-3">
             <button
               onClick={handleConfirm}
-              className="terminal-btn flex-1 text-sm font-mono"
+              className="terminal-btn flex-1 text-sm font-mono cursor-pointer"
             >
               [DOŁĄCZ DO GRY]
             </button>
             <button
               onClick={onClose}
-              className="terminal-btn-secondary text-sm font-mono px-4"
+              className="terminal-btn-secondary text-sm font-mono px-4 cursor-pointer"
             >
               [ANULUJ]
             </button>
