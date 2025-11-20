@@ -42,6 +42,7 @@ export default function MultiplayerGame() {
     isPlayerLeading,
     isOpponentLeading,
     leaderNickname,
+    gameStartTime,
   } = useMultiplayerGame({ roomId, nickname });
 
   // Setup keyboard controls
@@ -105,7 +106,7 @@ export default function MultiplayerGame() {
 
         {/* Center - Timer and Leader */}
         <div className="flex flex-col items-center gap-4">
-          <GameTimer isRunning={gameState.isPlaying && !gameState.gameOver} />
+          <GameTimer isRunning={gameState.isPlaying && !gameState.gameOver} startTime={gameStartTime} />
 
           {leaderNickname && (
             <div className="terminal-panel p-2 text-center">

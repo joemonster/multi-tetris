@@ -23,6 +23,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   const [isOpponentDisconnected, setIsOpponentDisconnected] = useState(false);
   const [gameResult, setGameResult] = useState<{ winner: string; reason: string } | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
+  const [gameStartTime, setGameStartTime] = useState<number | undefined>();
 
   // Load opponent nickname from localStorage on mount
   useEffect(() => {
@@ -125,7 +126,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       });
     };
 
-    const handleGameStart = (data: { roomId: string; opponent?: string }) => {
+    const handleGameStart = (data: { roomId: string; opponent?: string; startTime?: number }) => {
       if (data.opponent) {
         setOpponentNickname(data.opponent);
         addLog({
@@ -134,6 +135,10 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
           data: { roomId: data.roomId },
           color: 'green',
         });
+      }
+      // Store start time from server
+      if (data.startTime) {
+        setGameStartTime(data.startTime);
       }
       // Game is auto-started, but this can serve as a backup
       if (!gameStarted) {
@@ -192,6 +197,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     isOpponentDisconnected,
     gameResult,
     isConnected,
+    gameStartTime,
 
     // Computed values
     isPlayerLeading,

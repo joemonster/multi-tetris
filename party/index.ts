@@ -11,6 +11,7 @@ interface GameRoom {
   players: string[];
   nicknames: string[];
   createdAt: number;
+  startTime?: number;
 }
 
 interface Message {
@@ -273,18 +274,28 @@ export default class TetrisServer implements Party.Server {
 
     // Start game after countdown
     setTimeout(() => {
+      const startTime = Date.now();
+
+      // Update game room with start time
+      const game = this.games.get(roomId);
+      if (game) {
+        game.startTime = startTime;
+      }
+
       if (conn1) {
         conn1.send(JSON.stringify({
           type: 'game_start',
           roomId,
-          opponent: player2Data.nickname
+          opponent: player2Data.nickname,
+          startTime
         }));
       }
       if (conn2) {
         conn2.send(JSON.stringify({
           type: 'game_start',
           roomId,
-          opponent: player1Data.nickname
+          opponent: player1Data.nickname,
+          startTime
         }));
       }
     }, 3000);
