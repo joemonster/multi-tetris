@@ -160,12 +160,72 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       });
     };
 
+    const handleRematchRequest = (data: { playerId: string; playerNickname: string; roomId: string }) => {
+      setRematchRequest({
+        playerId: data.playerId,
+        playerNickname: data.playerNickname,
+      });
+      addLog({
+        type: 'event',
+        title: `${data.playerNickname} chce grać ponownie`,
+        color: 'green',
+      });
+
+      // Start countdown
+      setRematchTimeout(10);
+      const interval = setInterval(() => {
+        setRematchTimeout((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    };
+
+    const handleRematchStart = (data: { roomId: string; opponent: string; startTime: number }) => {
+      // Reset game state
+      setGameEndData(null);
+      setRematchRequest(null);
+      setGameStartTime(data.startTime);
+      setGameStarted(false);
+
+      addLog({
+        type: 'event',
+        title: 'Rematch rozpoczęty!',
+        color: 'green',
+      });
+
+      // Restart game
+      gameLogic.actions.resetGame();
+      gameLogic.actions.startGame();
+      setGameStarted(true);
+    };
+
+    const handleRematchRejected = () => {
+      setRematchRequest(null);
+      addLog({
+        type: 'event',
+        title: 'Rematch odrzucony',
+        color: 'orange',
+      });
+
+      // Redirect to lobby after delay
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 3000);
+    };
+
     on('opponent_update', handleOpponentUpdate);
     on('opponent_disconnected', handleOpponentDisconnected);
     on('opponent_reconnected', handleOpponentReconnected);
     on('game_over', handleGameOver);
     on('game_start', handleGameStart);
     on('game_end', handleGameEnd);
+    on('rematch_request', handleRematchRequest);
+    on('rematch_start', handleRematchStart);
+    on('rematch_rejected', handleRematchRejected);
 
     return () => {
       off('opponent_update');
@@ -174,6 +234,9 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       off('game_over');
       off('game_start');
       off('game_end');
+      off('rematch_request');
+      off('rematch_start');
+      off('rematch_rejected');
     };
   }, [socket, on, off, gameLogic.actions, gameStarted, addLog]);
 

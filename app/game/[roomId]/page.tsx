@@ -11,6 +11,7 @@ import { OpponentBoard } from '../../components/multiplayer/OpponentBoard';
 import { PlayerCard } from '../../components/multiplayer/PlayerCard';
 import { GameTimer } from '../../components/multiplayer/GameTimer';
 import { GameDebugPanel } from '../../components/debug/GameDebugPanel';
+import { GameEndModal } from '../../components/multiplayer/GameEndModal';
 
 export default function MultiplayerGame() {
   const params = useParams();
@@ -44,6 +45,9 @@ export default function MultiplayerGame() {
     leaderNickname,
     gameStartTime,
     emit,
+    gameEndData,
+    rematchRequest,
+    rematchTimeout,
   } = useMultiplayerGame({ roomId, nickname });
 
   // Setup keyboard controls
@@ -55,6 +59,27 @@ export default function MultiplayerGame() {
 
   // Handle exit game confirmation
   const handleExitGame = () => {
+    router.push('/');
+  };
+
+  // Handle rematch request
+  const handleRematchRequest = () => {
+    emit('rematch_request', { roomId });
+  };
+
+  // Handle rematch accept
+  const handleRematchAccept = () => {
+    emit('rematch_accept', { roomId });
+  };
+
+  // Handle rematch reject
+  const handleRematchReject = () => {
+    emit('rematch_reject', { roomId });
+  };
+
+  // Handle return to lobby
+  const handleReturnToLobby = () => {
+    emit('leave_game', { roomId });
     router.push('/');
   };
 
@@ -110,7 +135,7 @@ export default function MultiplayerGame() {
           <GameTimer
             isRunning={gameState.isPlaying && !gameState.gameOver}
             startTime={gameStartTime}
-            maxDuration={300000}
+            maxDuration={Number(process.env.NEXT_PUBLIC_GAME_DURATION_MS) || 300000}
             onTimeUp={() => {
               // Send game_over event when time is up
               emit('game_over', { roomId, reason: 'time_limit' });
@@ -287,6 +312,27 @@ export default function MultiplayerGame() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Game End Modal - New Better Modal */}
+      {gameEndData && (
+        <GameEndModal
+          winner={gameEndData.winner}
+          reason={gameEndData.reason}
+          playerNickname={nickname}
+          playerScore={gameState.score}
+          playerLines={gameState.lines}
+          playerLevel={gameState.level}
+          opponentScore={opponentState?.score || 0}
+          opponentLines={opponentState?.lines || 0}
+          opponentLevel={opponentState?.level || 0}
+          onRematchRequest={handleRematchRequest}
+          onReturnToLobby={handleReturnToLobby}
+          rematchRequest={rematchRequest}
+          rematchTimeout={rematchTimeout}
+          onRematchAccept={handleRematchAccept}
+          onRematchReject={handleRematchReject}
+        />
       )}
 
       {/* Debug Panel */}

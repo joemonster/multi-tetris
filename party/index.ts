@@ -119,6 +119,15 @@ export default class TetrisServer implements Party.Server {
       case 'leave_game':
         this.handleLeaveGame(sender, data.roomId as string);
         break;
+      case 'rematch_request':
+        this.handleRematchRequest(sender, data.roomId as string);
+        break;
+      case 'rematch_accept':
+        this.handleRematchAccept(sender, data.roomId as string);
+        break;
+      case 'rematch_reject':
+        this.handleRematchReject(sender, data.roomId as string);
+        break;
     }
   }
 
@@ -337,6 +346,99 @@ export default class TetrisServer implements Party.Server {
       }
       position++;
     });
+  }
+
+  handleRematchRequest(conn: Party.Connection, roomId: string) {
+    const game = this.games.get(roomId);
+    if (!game) return;
+
+    const playerIndex = game.players.indexOf(conn.id);
+    if (playerIndex === -1) return;
+
+    const playerNickname = game.nicknames[playerIndex];
+    const opponentIndex = playerIndex === 0 ? 1 : 0;
+    const opponentId = game.players[opponentIndex];
+
+    // Store rematch request
+    game.rematchRequested = {
+      playerId: conn.id,
+      timestamp: Date.now(),
+    };
+
+    console.log(`Rematch requested by ${playerNickname} in ${roomId}`);
+
+    // Notify opponent
+    const opponentConn = this.playerConnections.get(opponentId);
+    if (opponentConn) {
+      opponentConn.send(JSON.stringify({
+        type: 'rematch_request',
+        playerId: conn.id,
+        playerNickname,
+        roomId,
+      }));
+    }
+
+    // Set timeout - 10 seconds
+    setTimeout(() => {
+      const currentGame = this.games.get(roomId);
+      if (currentGame && currentGame.rematchRequested?.playerId === conn.id) {
+        // Timeout - reject rematch
+        this.handleRematchReject(conn, roomId);
+      }
+    }, 10000);
+  }
+
+  handleRematchAccept(conn: Party.Connection, roomId: string) {
+    const game = this.games.get(roomId);
+    if (!game || !game.rematchRequested) return;
+
+    console.log(`Rematch accepted in ${roomId}`);
+
+    // Reset game state for rematch
+    game.gameOverPlayers.clear();
+    game.rematchRequested = undefined;
+    const newStartTime = Date.now();
+    game.startTime = newStartTime;
+
+    // Notify both players to restart
+    game.players.forEach((playerId, index) => {
+      const playerConn = this.playerConnections.get(playerId);
+      const opponentNickname = game.nicknames[index === 0 ? 1 : 0];
+      if (playerConn) {
+        playerConn.send(JSON.stringify({
+          type: 'rematch_start',
+          roomId,
+          opponent: opponentNickname,
+          startTime: newStartTime,
+        }));
+      }
+    });
+  }
+
+  handleRematchReject(conn: Party.Connection, roomId: string) {
+    const game = this.games.get(roomId);
+    if (!game) return;
+
+    console.log(`Rematch rejected in ${roomId}`);
+
+    game.rematchRequested = undefined;
+
+    // Notify both players that rematch was rejected
+    game.players.forEach((playerId) => {
+      const playerConn = this.playerConnections.get(playerId);
+      if (playerConn) {
+        playerConn.send(JSON.stringify({
+          type: 'rematch_rejected',
+          roomId,
+        }));
+      }
+    });
+
+    // Cleanup game after a short delay
+    setTimeout(() => {
+      this.games.delete(roomId);
+      game.players.forEach(id => this.playerRooms.delete(id));
+    }, 2000);
   }
 
   broadcastOnlineCount() {
