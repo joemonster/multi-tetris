@@ -21,15 +21,29 @@ export default function MultiplayerGame() {
   const [showExitModal, setShowExitModal] = useState(false);
   const [disconnectCountdown, setDisconnectCountdown] = useState(10);
 
-  // Load nickname
+  // Load nickname: Priority: sessionStorage -> localStorage -> Random (save to session only)
   useEffect(() => {
-    const saved = localStorage.getItem('tetris_nickname');
-    if (saved) {
-      setNickname(saved);
-    } else {
-      const randomNick = `GRACZ_${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      setNickname(randomNick);
+    // 1. Check sessionStorage (current tab session)
+    const sessionNick = sessionStorage.getItem('tetris_nickname');
+    if (sessionNick) {
+      setNickname(sessionNick);
+      return;
     }
+
+    // 2. Check localStorage (user preference)
+    const localNick = localStorage.getItem('tetris_nickname');
+    if (localNick) {
+      setNickname(localNick);
+      // Also cache in session for consistency
+      sessionStorage.setItem('tetris_nickname', localNick);
+      return;
+    }
+
+    // 3. Generate random
+    const randomNick = `GRACZ_${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+    setNickname(randomNick);
+    // Only save random nick to session, don't pollute global preferences
+    sessionStorage.setItem('tetris_nickname', randomNick);
   }, []);
 
   const {
@@ -37,6 +51,7 @@ export default function MultiplayerGame() {
     actions,
     opponentState,
     opponentNickname,
+    playerNickname: serverPlayerNickname, // Use nickname from server
     isOpponentDisconnected,
     isConnected,
     isPlayerLeading,
@@ -58,6 +73,9 @@ export default function MultiplayerGame() {
     sendRematchRequest,
     handleTimeLimitEnd,
   } = useMultiplayerGame({ roomId, nickname });
+  
+  // Use server nickname if available, otherwise fallback to localStorage nickname
+  const displayNickname = serverPlayerNickname || nickname;
 
   // Setup keyboard controls
   useKeyboardControls({
@@ -181,7 +199,7 @@ export default function MultiplayerGame() {
 
           {/* Player stats */}
           <PlayerCard
-            nickname={nickname}
+            nickname={displayNickname}
             score={gameState.score}
             lines={gameState.lines}
             isCurrentPlayer={true}
@@ -274,9 +292,12 @@ export default function MultiplayerGame() {
       {/* Game End Modal */}
       {gameEndData && (
         <GameEndModal
-          winner={gameEndData.winner}
-          reason={gameEndData.reason}
-          playerNickname={nickname}
+          roomId={gameEndData.roomId}
+          winnerNickname={gameEndData.winnerNickname}
+          winnerScore={gameEndData.winnerScore}
+          loserNickname={gameEndData.loserNickname}
+          loserScore={gameEndData.loserScore}
+          playerNickname={displayNickname}
           playerScore={finalPlayerScore}
           playerLines={finalPlayerLines}
           playerLevel={finalPlayerLevel}
@@ -292,7 +313,7 @@ export default function MultiplayerGame() {
           onRematchReject={handleRematchReject}
           waitingForRematchResponse={waitingForRematchResponse}
           rematchWaitTimeout={rematchWaitTimeout}
-          loser={gameEndData.loser}
+          isWinner={gameEndData.isWinner}
         />
       )}
 

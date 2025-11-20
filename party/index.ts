@@ -203,13 +203,18 @@ export default class TetrisServer implements Party.Server {
     const opponentConn = this.playerConnections.get(opponentId);
 
     if (opponentConn) {
+      // Get nickname of the player who sent this update
+      const playerIndex = game.players.indexOf(conn.id);
+      const playerNickname = game.nicknames[playerIndex] || (data.nickname as string) || 'Unknown';
+      
       opponentConn.send(JSON.stringify({
         type: 'opponent_update',
         board: data.board,
         score: data.score,
         lines: data.lines,
         level: data.level,
-        gameOver: data.gameOver
+        gameOver: data.gameOver,
+        nickname: playerNickname // Include nickname of the player who sent this update
       }));
     }
   }
@@ -231,32 +236,46 @@ export default class TetrisServer implements Party.Server {
       const playerNickname = game.nicknames[playerIndex];
       const opponentNickname = game.nicknames[opponentIndex];
       
-      // Check if opponent already lost before time limit - if so, opponent wins
+      // Check if opponent already lost before time limit - if so, THIS player wins (opponent lost)
       if (game.gameOverPlayers.has(opponentId)) {
         const playerScore = game.playerScores.get(conn.id) || 0;
         const opponentScore = game.playerScores.get(opponentId) || 0;
         
         console.log(`Player ${playerNickname} ended due to time limit, but opponent ${opponentNickname} lost before time limit in ${roomId}`);
         
-      // Opponent wins (they lost before time limit, this player ended due to time limit)
-      // Send same neutral message to both players
-      const gameEndMessage = JSON.stringify({
-        type: 'game_end',
-        winner: opponentNickname,
-        loser: playerNickname,
-        reason: `${playerNickname} przegrał przed czasem (wynik: ${opponentScore} vs ${playerScore})`,
-        roomId
-      });
-      
-      const opponentConn = this.playerConnections.get(opponentId);
-      if (opponentConn) {
-        opponentConn.send(gameEndMessage);
-      }
-      
-      const timeLimitLoserConn = this.playerConnections.get(conn.id);
-      if (timeLimitLoserConn) {
-        timeLimitLoserConn.send(gameEndMessage);
-      }
+        // Player wins (opponent lost before time limit)
+        // Send personalized message to each player
+        const reasonText = `${opponentNickname} przegrał przed czasem (wynik: ${playerScore} vs ${opponentScore})`;
+        
+        const opponentConn = this.playerConnections.get(opponentId);
+        if (opponentConn) {
+          const loserMessage = JSON.stringify({
+            type: 'game_end',
+            roomId,
+            winnerNickname: playerNickname,
+            winnerScore: playerScore,
+            loserNickname: opponentNickname,
+            loserScore: opponentScore,
+            isWinner: false,
+            reason: reasonText
+          });
+          opponentConn.send(loserMessage);
+        }
+        
+        const timeLimitWinnerConn = this.playerConnections.get(conn.id);
+        if (timeLimitWinnerConn) {
+          const winnerMessage = JSON.stringify({
+            type: 'game_end',
+            roomId,
+            winnerNickname: playerNickname,
+            winnerScore: playerScore,
+            loserNickname: opponentNickname,
+            loserScore: opponentScore,
+            isWinner: true,
+            reason: reasonText
+          });
+          timeLimitWinnerConn.send(winnerMessage);
+        }
         
         game.timeLimitEnded.add(conn.id);
         return;
@@ -289,19 +308,26 @@ export default class TetrisServer implements Party.Server {
         
         // Notify both players with same neutral message - client will personalize it
         const loserNickname = winnerNickname === game.nicknames[0] ? game.nicknames[1] : game.nicknames[0];
+        const winnerScore = winnerNickname === game.nicknames[0] ? player1Score : player2Score;
+        const loserScore = winnerNickname === game.nicknames[0] ? player2Score : player1Score;
         
-        const gameEndMessage = JSON.stringify({
-          type: 'game_end',
-          winner: winnerNickname,
-          loser: loserNickname,
-          reason: reasonText,
-          roomId
-        });
-        
-        // Send same message to both players
+        // Send same message to both players - client will personalize it
         game.players.forEach((playerId) => {
           const playerConn = this.playerConnections.get(playerId);
           if (playerConn) {
+            // Determine if this specific player is the winner
+            const isWinner = playerId === (winnerNickname === game.nicknames[0] ? game.players[0] : game.players[1]);
+            
+            const gameEndMessage = JSON.stringify({
+              type: 'game_end',
+              roomId,
+              winnerNickname,
+              winnerScore,
+              loserNickname,
+              loserScore,
+              isWinner,
+              reason: reasonText
+            });
             playerConn.send(gameEndMessage);
           }
         });
@@ -325,23 +351,37 @@ export default class TetrisServer implements Party.Server {
             const playerScore = currentGame.playerScores.get(conn.id) || 0;
             const opponentScore = currentGame.playerScores.get(opponentId) || 0;
             
-            // Send same neutral message to both players
-            const gameEndMessage = JSON.stringify({
-              type: 'game_end',
-              winner: opponentNickname,
-              loser: playerNickname,
-              reason: `${playerNickname} przegrał przed czasem (wynik: ${opponentScore} vs ${playerScore})`,
-              roomId
-            });
+            // Send personalized message to each player
+            const reasonText = `${playerNickname} przegrał przed czasem (wynik: ${opponentScore} vs ${playerScore})`;
             
             const winnerConn = this.playerConnections.get(opponentId);
             const loserConn = this.playerConnections.get(conn.id);
             
             if (winnerConn) {
-              winnerConn.send(gameEndMessage);
+              const winnerMessage = JSON.stringify({
+                type: 'game_end',
+                roomId,
+                winnerNickname: opponentNickname,
+                winnerScore: opponentScore,
+                loserNickname: playerNickname,
+                loserScore: playerScore,
+                isWinner: true,
+                reason: reasonText
+              });
+              winnerConn.send(winnerMessage);
             }
             if (loserConn) {
-              loserConn.send(gameEndMessage);
+              const loserMessage = JSON.stringify({
+                type: 'game_end',
+                roomId,
+                winnerNickname: opponentNickname,
+                winnerScore: opponentScore,
+                loserNickname: playerNickname,
+                loserScore: playerScore,
+                isWinner: false,
+                reason: reasonText
+              });
+              loserConn.send(loserMessage);
             }
             
             currentGame.timeLimitEnded.add(conn.id);
@@ -369,21 +409,28 @@ export default class TetrisServer implements Party.Server {
               reasonText = `Limit czasu - remis (${player1Score} vs ${player2Score})`;
             }
             
-            // Notify both players with same neutral message - client will personalize it
+            // Notify both players with same message - client will personalize it
             const loserNickname = winnerNickname === currentGame.nicknames[0] ? currentGame.nicknames[1] : currentGame.nicknames[0];
-            
-            const gameEndMessage = JSON.stringify({
-              type: 'game_end',
-              winner: winnerNickname,
-              loser: loserNickname,
-              reason: reasonText,
-              roomId
-            });
+            const winnerScore = winnerNickname === currentGame.nicknames[0] ? player1Score : player2Score;
+            const loserScore = winnerNickname === currentGame.nicknames[0] ? player2Score : player1Score;
             
             // Send same message to both players
             currentGame.players.forEach((playerId) => {
               const playerConn = this.playerConnections.get(playerId);
               if (playerConn) {
+                // Determine if this specific player is the winner
+                const isWinner = playerId === (winnerNickname === currentGame.nicknames[0] ? currentGame.players[0] : currentGame.players[1]);
+
+                const gameEndMessage = JSON.stringify({
+                  type: 'game_end',
+                  roomId,
+                  winnerNickname,
+                  winnerScore,
+                  loserNickname,
+                  loserScore,
+                  isWinner,
+                  reason: reasonText
+                });
                 playerConn.send(gameEndMessage);
               }
             });
@@ -415,22 +462,34 @@ export default class TetrisServer implements Party.Server {
       
       // Opponent wins (they ended due to time limit, this player lost before)
       // Send same neutral message to both players
-      const gameEndMessage = JSON.stringify({
-        type: 'game_end',
-        winner: opponentNickname,
-        loser: playerNickname,
-        reason: `${playerNickname} przegrał przed czasem (wynik: ${opponentScore} vs ${playerScore})`,
-        roomId
-      });
+      // Actually we need to customize isWinner for each
       
       const opponentConn = this.playerConnections.get(opponentId);
       if (opponentConn) {
-        opponentConn.send(gameEndMessage);
+        const winnerMessage = JSON.stringify({
+            type: 'game_end',
+            roomId,
+            winnerNickname: opponentNickname,
+            winnerScore: opponentScore,
+            loserNickname: playerNickname,
+            loserScore: playerScore,
+            isWinner: true
+        });
+        opponentConn.send(winnerMessage);
       }
       
       const loserConn = this.playerConnections.get(conn.id);
       if (loserConn) {
-        loserConn.send(gameEndMessage);
+        const loserMessage = JSON.stringify({
+            type: 'game_end',
+            roomId,
+            winnerNickname: opponentNickname,
+            winnerScore: opponentScore,
+            loserNickname: playerNickname,
+            loserScore: playerScore,
+            isWinner: false
+        });
+        loserConn.send(loserMessage);
       }
       
       game.gameOverPlayers.add(conn.id);
@@ -453,28 +512,43 @@ export default class TetrisServer implements Party.Server {
     // The opponent wins, even if they could still play
     // This is NOT a remis - one player lost, so the other wins
     
-    // Send same neutral message to both players - client will personalize it
-    const gameEndMessage = JSON.stringify({
-      type: 'game_end',
-      winner: opponentNickname,
-      loser: playerNickname,
-      reason: `${playerNickname} przegrał przed czasem${opponentScore > playerScore ? ` (wynik: ${opponentScore} vs ${playerScore})` : ''}`,
-      roomId
-    });
+    // Send personalized message to each player with their own nickname
+    const reasonText = `${playerNickname} przegrał przed czasem${opponentScore > playerScore ? ` (wynik: ${opponentScore} vs ${playerScore})` : ''}`;
     
-    // Notify both players with the same message
+      // Send to winner (opponent)
     const opponentConn = this.playerConnections.get(opponentId);
     if (opponentConn) {
-      opponentConn.send(gameEndMessage);
-      console.log(`Sent game_end to winner ${opponentNickname} (${opponentId}):`, gameEndMessage);
+      const winnerMessage = JSON.stringify({
+        type: 'game_end',
+        roomId,
+        winnerNickname: opponentNickname,
+        winnerScore: opponentScore,
+        loserNickname: playerNickname,
+        loserScore: playerScore,
+        isWinner: true,
+        reason: reasonText
+      });
+      opponentConn.send(winnerMessage);
+      console.log(`Sent game_end to winner ${opponentNickname} (${opponentId}):`, winnerMessage);
     } else {
       console.log(`ERROR: Opponent connection not found for ${opponentId}`);
     }
 
+    // Send to loser (current player)
     const loserConn = this.playerConnections.get(conn.id);
     if (loserConn) {
-      loserConn.send(gameEndMessage);
-      console.log(`Sent game_end to loser ${playerNickname} (${conn.id}):`, gameEndMessage);
+      const loserMessage = JSON.stringify({
+        type: 'game_end',
+        roomId,
+        winnerNickname: opponentNickname,
+        winnerScore: opponentScore,
+        loserNickname: playerNickname,
+        loserScore: playerScore,
+        isWinner: false,
+        reason: reasonText
+      });
+      loserConn.send(loserMessage);
+      console.log(`Sent game_end to loser ${playerNickname} (${conn.id}):`, loserMessage);
     } else {
       console.log(`ERROR: Loser connection not found for ${conn.id}`);
     }
@@ -535,6 +609,7 @@ export default class TetrisServer implements Party.Server {
       conn1.send(JSON.stringify({
         type: 'match_found',
         opponent: player2Data.nickname,
+        playerNickname: player1Data.nickname, // Send player's own nickname from server
         roomId,
         matchFoundTime
       }));
@@ -544,6 +619,7 @@ export default class TetrisServer implements Party.Server {
       conn2.send(JSON.stringify({
         type: 'match_found',
         opponent: player1Data.nickname,
+        playerNickname: player2Data.nickname, // Send player's own nickname from server
         roomId,
         matchFoundTime
       }));
@@ -566,6 +642,7 @@ export default class TetrisServer implements Party.Server {
           type: 'game_start',
           roomId,
           opponent: player2Data.nickname,
+          playerNickname: player1Data.nickname, // Send player's own nickname from server
           startTime
         }));
       }
@@ -574,6 +651,7 @@ export default class TetrisServer implements Party.Server {
           type: 'game_start',
           roomId,
           opponent: player1Data.nickname,
+          playerNickname: player2Data.nickname, // Send player's own nickname from server
           startTime
         }));
       }
@@ -650,12 +728,14 @@ export default class TetrisServer implements Party.Server {
     // Notify both players to restart
     game.players.forEach((playerId, index) => {
       const playerConn = this.playerConnections.get(playerId);
+      const playerNickname = game.nicknames[index];
       const opponentNickname = game.nicknames[index === 0 ? 1 : 0];
       if (playerConn) {
         playerConn.send(JSON.stringify({
           type: 'rematch_start',
           roomId,
           opponent: opponentNickname,
+          playerNickname: playerNickname, // Send player's own nickname from server
           startTime: newStartTime,
         }));
       }

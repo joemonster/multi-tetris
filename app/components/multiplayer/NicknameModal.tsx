@@ -12,12 +12,18 @@ export function NicknameModal({ isOpen, onClose, onConfirm }: NicknameModalProps
   const [nickname, setNickname] = useState('');
   const [isFocused, setIsFocused] = useState(false);
 
-  // Load from localStorage on mount
+  // Load from sessionStorage (priority) or localStorage on mount
   useEffect(() => {
     if (isOpen) {
-      const saved = localStorage.getItem('tetris_nickname');
-      if (saved) {
-        setNickname(saved);
+      const sessionSaved = sessionStorage.getItem('tetris_nickname');
+      if (sessionSaved) {
+        setNickname(sessionSaved);
+        return;
+      }
+      
+      const localSaved = localStorage.getItem('tetris_nickname');
+      if (localSaved) {
+        setNickname(localSaved);
       }
     }
   }, [isOpen]);
@@ -37,8 +43,9 @@ export function NicknameModal({ isOpen, onClose, onConfirm }: NicknameModalProps
       finalNickname = `GRACZ_${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
     }
 
-    // Save to localStorage
+    // Save to localStorage (user preference) and sessionStorage (current session)
     localStorage.setItem('tetris_nickname', finalNickname);
+    sessionStorage.setItem('tetris_nickname', finalNickname);
 
     onConfirm(finalNickname);
   };

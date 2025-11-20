@@ -20,11 +20,19 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   // Multiplayer state
   const [opponentState, setOpponentState] = useState<OpponentState | null>(null);
   const [opponentNickname, setOpponentNickname] = useState<string>('');
+  const [playerNickname, setPlayerNickname] = useState<string>(nickname); // Player nickname from server
   const [isOpponentDisconnected, setIsOpponentDisconnected] = useState(false);
   const [gameResult, setGameResult] = useState<{ winner: string; reason: string } | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameStartTime, setGameStartTime] = useState<number | undefined>();
-  const [gameEndData, setGameEndData] = useState<{ winner: string; reason: string; roomId: string; loser?: string } | null>(null);
+  const [gameEndData, setGameEndData] = useState<{ 
+    roomId: string;
+    winnerNickname: string;
+    winnerScore: number;
+    loserNickname: string;
+    loserScore: number;
+    isWinner?: boolean;
+  } | null>(null);
   const [finalPlayerScore, setFinalPlayerScore] = useState<number>(0);
   const [finalPlayerLines, setFinalPlayerLines] = useState<number>(0);
   const [finalPlayerLevel, setFinalPlayerLevel] = useState<number>(0);
@@ -36,13 +44,14 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
   const [rematchWaitTimeout, setRematchWaitTimeout] = useState<number>(10);
 
-  // Load opponent nickname from localStorage on mount
+  // Reset opponent state when roomId changes
   useEffect(() => {
-    const savedOpponent = localStorage.getItem('tetris_opponent');
-    if (savedOpponent) {
-      setOpponentNickname(savedOpponent);
-    }
-  }, []);
+    setOpponentState(null);
+    setOpponentNickname('');
+    setPlayerNickname(nickname); // Reset to prop nickname when room changes
+    setIsOpponentDisconnected(false);
+    // Opponent nickname and player nickname will be set from server when game starts
+  }, [roomId, nickname]);
 
   // Throttle ref for sending updates
   const lastUpdateRef = useRef<number>(0);
@@ -67,8 +76,8 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   useEffect(() => {
     if (!isConnected || !roomId) return;
     
-    // If game over and not already sent and not time limit
-    if (gameLogic.gameState.gameOver && !gameOverSentRef.current && !timeLimitEndedRef.current) {
+    // If game over and not already sent and not time limit AND not caused by server message
+    if (gameLogic.gameState.gameOver && !gameOverSentRef.current && !timeLimitEndedRef.current && !gameEndData) {
       gameOverSentRef.current = true;
       
       // Send final game update with current score
@@ -80,6 +89,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
         lines: gameLogic.gameState.lines,
         level: gameLogic.gameState.level,
         gameOver: true,
+        nickname: playerNickname,
       });
       
       // Send game_over event immediately
@@ -114,12 +124,14 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       lines: gameLogic.gameState.lines,
       level: gameLogic.gameState.level,
       gameOver: gameLogic.gameState.gameOver,
+      nickname: playerNickname, // Include nickname of the player sending this update
     };
 
     emit('game_update', updateData);
   }, [
     isConnected,
     roomId,
+    playerNickname,
     gameLogic.gameState.board,
     gameLogic.gameState.score,
     gameLogic.gameState.lines,
@@ -134,10 +146,14 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
 
     const handleOpponentUpdate = (data: OpponentState) => {
       setOpponentState(data);
+      // Update opponent nickname if available and we don't have it yet
+      if (data.nickname && (!opponentNickname || opponentNickname === 'Oczekiwanie...')) {
+        setOpponentNickname(data.nickname);
+      }
       addLog({
         type: 'event',
-        title: 'Update od przeciwnika',
-        data: { score: data.score, lines: data.lines },
+        title: `Update od ${data.nickname || 'przeciwnika'}`,
+        data: { nickname: data.nickname, score: data.score, lines: data.lines },
         color: 'blue',
       });
     };
@@ -170,13 +186,23 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       });
     };
 
-    const handleGameStart = (data: { roomId: string; opponent?: string; startTime?: number }) => {
+    const handleGameStart = (data: { roomId: string; opponent?: string; playerNickname?: string; startTime?: number }) => {
+      // Reset opponent state when starting new game
+      setOpponentState(null);
+      setIsOpponentDisconnected(false);
+      
+      // Set player nickname from server - this is the authoritative nickname for this game
+      if (data.playerNickname) {
+        setPlayerNickname(data.playerNickname);
+      }
+      
       if (data.opponent) {
+        // Set opponent nickname from server - keep it in state for this game session
         setOpponentNickname(data.opponent);
         addLog({
           type: 'event',
           title: `Gra rozpoczęta vs ${data.opponent}`,
-          data: { roomId: data.roomId },
+          data: { roomId: data.roomId, playerNickname: data.playerNickname },
           color: 'green',
         });
       }
@@ -193,14 +219,33 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       }
     };
 
-    const handleGameEnd = (data: { winner: string; reason: string; roomId: string; loser?: string }) => {
+    const handleGameEnd = (data: { 
+      roomId: string;
+      winnerNickname: string;
+      winnerScore: number;
+      loserNickname: string;
+      loserScore: number;
+      isWinner?: boolean;
+    }) => {
       console.log('handleGameEnd called with:', data);
+      console.log('Current player nickname:', playerNickname);
+      
+      // Use isWinner from server if available, otherwise fallback to name comparison
+      const isWinner = data.isWinner !== undefined 
+        ? data.isWinner 
+        : data.winnerNickname?.trim().toLowerCase() === playerNickname?.trim().toLowerCase();
+      
+      console.log('Is this player the winner?', isWinner);
       
       // Save final scores BEFORE resetting game
-      const finalPlayerScore = gameLogic.gameState.score;
+      // Use scores from server message
+      
+      const finalPlayerScore = isWinner ? data.winnerScore : data.loserScore;
+      const finalOpponentScore = isWinner ? data.loserScore : data.winnerScore;
+      
+      // Keep lines and level from current game state
       const finalPlayerLines = gameLogic.gameState.lines;
       const finalPlayerLevel = gameLogic.gameState.level;
-      const finalOpponentScore = opponentState?.score || 0;
       const finalOpponentLines = opponentState?.lines || 0;
       const finalOpponentLevel = opponentState?.level || 0;
       
@@ -216,14 +261,21 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       setFinalOpponentLines(finalOpponentLines);
       setFinalOpponentLevel(finalOpponentLevel);
       
-      setGameEndData(data);
+      setGameEndData({ ...data, isWinner });
       // Stop the game (but don't reset yet - we need scores for modal)
       gameLogic.actions.endGame();
       addLog({
         type: 'event',
-        title: `Koniec gry - ${data.winner} wygrywa`,
-        data: { reason: data.reason, roomId: data.roomId },
-        color: 'orange',
+        title: `Koniec gry - ${isWinner ? 'WYGRANA' : 'PRZEGRANA'}`,
+        data: { 
+          roomId: data.roomId,
+          winnerNickname: data.winnerNickname,
+          winnerScore: data.winnerScore,
+          loserNickname: data.loserNickname,
+          loserScore: data.loserScore,
+          isWinner
+        },
+        color: isWinner ? 'green' : 'orange',
       });
       
       console.log('gameEndData set, modal should appear');
@@ -253,7 +305,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       }, 1000);
     };
 
-    const handleRematchStart = (data: { roomId: string; opponent: string; startTime: number }) => {
+    const handleRematchStart = (data: { roomId: string; opponent: string; playerNickname?: string; startTime: number }) => {
       // Reset game state
       setGameEndData(null);
       setFinalPlayerScore(0);
@@ -264,6 +316,16 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       setFinalOpponentLevel(0);
       setRematchRequest(null);
       setWaitingForRematchResponse(false);
+      // Reset opponent state for rematch
+      setOpponentState(null);
+      setOpponentNickname(data.opponent);
+      setIsOpponentDisconnected(false);
+      
+      // Set player nickname from server for rematch
+      if (data.playerNickname) {
+        setPlayerNickname(data.playerNickname);
+      }
+      
       // Reset the ref flags for rematch
       gameStartTimeSetRef.current = false;
       timeLimitEndedRef.current = false;
@@ -342,7 +404,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     : false;
 
   const leaderNickname = isPlayerLeading
-    ? nickname
+    ? playerNickname
     : isOpponentLeading
     ? opponentNickname
     : null;
@@ -368,6 +430,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       lines: gameLogic.gameState.lines,
       level: gameLogic.gameState.level,
       gameOver: true,
+      nickname: playerNickname,
     });
 
     // Send game_over event with time_limit reason
@@ -425,7 +488,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     leaderNickname,
 
     // Player info
-    playerNickname: nickname,
+    playerNickname: playerNickname, // Use nickname from server, not from localStorage
     roomId,
 
     // Socket communication

@@ -21,17 +21,29 @@ export default function QueuePage() {
     reset,
   } = useMatchmaking();
 
-  // Load nickname from localStorage
+  // Load nickname: Priority: sessionStorage -> localStorage -> Random (save to session only)
   useEffect(() => {
-    const saved = localStorage.getItem('tetris_nickname');
-    if (saved) {
-      setNickname(saved);
-    } else {
-      // Generate random nickname if none saved
-      const randomNick = `GRACZ_${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-      setNickname(randomNick);
-      localStorage.setItem('tetris_nickname', randomNick);
+    // 1. Check sessionStorage (current tab session)
+    const sessionNick = sessionStorage.getItem('tetris_nickname');
+    if (sessionNick) {
+      setNickname(sessionNick);
+      return;
     }
+
+    // 2. Check localStorage (user preference)
+    const localNick = localStorage.getItem('tetris_nickname');
+    if (localNick) {
+      setNickname(localNick);
+      // Also cache in session for consistency
+      sessionStorage.setItem('tetris_nickname', localNick);
+      return;
+    }
+
+    // 3. Generate random if none saved
+    const randomNick = `GRACZ_${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+    setNickname(randomNick);
+    // Only save random nick to session, don't pollute global preferences
+    sessionStorage.setItem('tetris_nickname', randomNick);
   }, []);
 
   // Start searching when connected and nickname is set
@@ -54,9 +66,8 @@ export default function QueuePage() {
 
   // Handle game start
   const handleGameStart = React.useCallback(() => {
-    if (matchData) {
-      // Save opponent nickname for game page
-      localStorage.setItem('tetris_opponent', matchData.opponent);
+    if (matchData && matchData.roomId) {
+      // Opponent nickname will be set from server when game starts
       router.push(`/game/${matchData.roomId}`);
     }
   }, [matchData, router]);

@@ -4,8 +4,11 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 
 interface GameEndModalProps {
-  winner: string;
-  reason: string;
+  roomId: string;
+  winnerNickname: string;
+  winnerScore: number;
+  loserNickname: string;
+  loserScore: number;
   playerNickname: string;
   playerScore: number;
   playerLines: number;
@@ -13,6 +16,7 @@ interface GameEndModalProps {
   opponentScore: number;
   opponentLines: number;
   opponentLevel: number;
+  opponentNickname?: string;
   onRematchRequest: () => void;
   onReturnToLobby: () => void;
   rematchRequest?: {
@@ -24,44 +28,37 @@ interface GameEndModalProps {
   onRematchReject?: () => void;
   waitingForRematchResponse?: boolean;
   rematchWaitTimeout?: number;
-  loser?: string; // Optional loser nickname from server
+  isWinner?: boolean;
 }
 
-// Function to personalize the reason message based on whether player is winner or loser
-function personalizeReason(reason: string, winner: string, playerNickname: string, loser?: string): string {
-  // Compare nicknames case-insensitively and trim whitespace
-  const normalizedWinner = winner?.trim().toLowerCase();
+// Function to generate personalized reason message based on game end data
+function generateReasonMessage(
+  winnerNickname: string,
+  winnerScore: number,
+  loserNickname: string,
+  loserScore: number,
+  playerNickname: string,
+  isWinnerProp?: boolean
+): string {
+  const normalizedWinner = winnerNickname?.trim().toLowerCase();
   const normalizedPlayerNickname = playerNickname?.trim().toLowerCase();
-  const isWinner = normalizedWinner === normalizedPlayerNickname;
+  const isWinner = isWinnerProp !== undefined ? isWinnerProp : normalizedWinner === normalizedPlayerNickname;
   
-  // If reason contains "przegrał przed czasem", personalize it
-  if (reason.includes('przegrał przed czasem')) {
-    if (isWinner) {
-      // Player is winner - "GR2, wygrałeś, bo GR1 przegrał przed czasem..."
-      const loserName = loser || reason.split(' ')[0]; // Extract loser name from reason
-      // Extract score part if exists
-      const scorePart = reason.includes('(') ? reason.substring(reason.indexOf('(')) : '';
-      return `${playerNickname}, wygrałeś, bo ${loserName} przegrał przed czasem${scorePart}`;
-    } else {
-      // Player is loser - "GR1, przegrałeś przed czasem..."
-      const scorePart = reason.includes('(') ? reason.substring(reason.indexOf('(')) : '';
-      return `${playerNickname}, przegrałeś przed czasem${scorePart}`;
-    }
-  }
-  
-  // For other reasons (time limit, etc.), personalize them
   if (isWinner) {
-    // Player won - "GR2, wygrałeś - Limit czasu..."
-    return `${playerNickname}, wygrałeś - ${reason}`;
+    // Player won - generate message based on score difference
+    return `${playerNickname}, wygrałeś (wynik: ${winnerScore} vs ${loserScore})`;
   } else {
-    // Player lost - "GR1, przegrałeś - Limit czasu..."
-    return `${playerNickname}, przegrałeś - ${reason}`;
+    // Player lost
+    return `${playerNickname}, przegrałeś (wynik: ${loserScore} vs ${winnerScore})`;
   }
 }
 
 export function GameEndModal({
-  winner,
-  reason,
+  roomId,
+  winnerNickname,
+  winnerScore,
+  loserNickname,
+  loserScore,
   playerNickname,
   playerScore,
   playerLines,
@@ -78,17 +75,25 @@ export function GameEndModal({
   onRematchReject,
   waitingForRematchResponse,
   rematchWaitTimeout,
-  loser,
+  isWinner: isWinnerProp,
 }: GameEndModalProps) {
-  // Compare nicknames case-insensitively and trim whitespace
-  const normalizedWinner = winner?.trim().toLowerCase();
+  // Compare nicknames case-insensitively to determine if player is winner
+  const normalizedWinner = winnerNickname?.trim().toLowerCase();
   const normalizedPlayerNickname = playerNickname?.trim().toLowerCase();
-  const isWinner = normalizedWinner === normalizedPlayerNickname;
+  const isWinner = isWinnerProp !== undefined ? isWinnerProp : normalizedWinner === normalizedPlayerNickname;
   
-  const personalizedReason = personalizeReason(reason, winner, playerNickname, loser);
+  // Generate personalized reason message
+  const reasonMessage = generateReasonMessage(
+    winnerNickname,
+    winnerScore,
+    loserNickname,
+    loserScore,
+    playerNickname,
+    isWinner
+  );
   
-  // Determine opponent display name - use opponentNickname if available, otherwise use winner/loser logic
-  const opponentDisplayName = opponentNickname || (isWinner ? loser : winner) || winner;
+  // Determine opponent display name - use opponentNickname if available, otherwise use loserNickname/winnerNickname
+  const opponentDisplayName = opponentNickname || (isWinner ? loserNickname : winnerNickname);
 
   return (
     <div className="fixed inset-0 bg-[var(--bg-terminal)]/95 flex items-center justify-center z-50">
@@ -101,7 +106,7 @@ export function GameEndModal({
         </h2>
 
         <p className="text-[var(--terminal-gray)] font-mono text-sm mb-6">
-          {personalizedReason}
+          {reasonMessage}
         </p>
 
         {/* Stats Comparison */}

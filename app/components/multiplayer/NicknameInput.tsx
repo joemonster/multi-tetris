@@ -10,18 +10,29 @@ interface NicknameInputProps {
 export function NicknameInput({ value, onChange }: NicknameInputProps) {
   const [isFocused, setIsFocused] = useState(false);
 
-  // Load from localStorage on mount
+  // Load from sessionStorage (priority) or localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('tetris_nickname');
-    if (saved) {
-      onChange(saved);
+    // Check sessionStorage first
+    const sessionSaved = sessionStorage.getItem('tetris_nickname');
+    if (sessionSaved) {
+      onChange(sessionSaved);
+      return;
+    }
+
+    // Then localStorage
+    const localSaved = localStorage.getItem('tetris_nickname');
+    if (localSaved) {
+      onChange(localSaved);
+      // Also sync to session
+      sessionStorage.setItem('tetris_nickname', localSaved);
     }
   }, [onChange]);
 
-  // Save to localStorage on change
+  // Save to localStorage and sessionStorage on change
   useEffect(() => {
     if (value) {
       localStorage.setItem('tetris_nickname', value);
+      sessionStorage.setItem('tetris_nickname', value);
     }
   }, [value]);
 
