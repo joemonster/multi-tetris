@@ -5,24 +5,50 @@ import React, { useState, useEffect } from 'react';
 interface MatchFoundProps {
   playerNickname: string;
   opponentNickname: string;
+  matchFoundTime?: number; // Server time when match was found
   onStart: () => void;
 }
 
-export function MatchFound({ playerNickname, opponentNickname, onStart }: MatchFoundProps) {
+export function MatchFound({ playerNickname, opponentNickname, matchFoundTime, onStart }: MatchFoundProps) {
   const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
-    if (countdown <= 0) {
-      onStart();
-      return;
+    // If we have server time, use it for synchronized countdown
+    if (matchFoundTime) {
+      const updateCountdown = () => {
+        const now = Date.now();
+        const elapsed = now - matchFoundTime;
+        const remaining = Math.max(0, 3000 - elapsed);
+        const newCountdown = Math.ceil(remaining / 1000);
+
+        if (newCountdown <= 0) {
+          onStart();
+        } else {
+          setCountdown(newCountdown);
+        }
+      };
+
+      // Update immediately
+      updateCountdown();
+
+      // Update every 100ms for smooth countdown
+      const interval = setInterval(updateCountdown, 100);
+
+      return () => clearInterval(interval);
+    } else {
+      // Fallback to local countdown if no server time
+      if (countdown <= 0) {
+        onStart();
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+
+      return () => clearTimeout(timer);
     }
-
-    const timer = setTimeout(() => {
-      setCountdown(prev => prev - 1);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [countdown, onStart]);
+  }, [matchFoundTime, countdown, onStart]);
 
   return (
     <div className="fixed inset-0 bg-[var(--bg-terminal)]/95 flex items-center justify-center z-50">

@@ -11,39 +11,62 @@ interface GameTimerProps {
 }
 
 export function GameTimer({ isRunning, startTime, maxDuration = 300000, onTimeUpdate, onTimeUp }: GameTimerProps) {
-  const [elapsedTime, setElapsedTime] = useState(0);
   const [remainingTime, setRemainingTime] = useState(maxDuration);
   const startTimeRef = useRef<number | undefined>(undefined);
   const hasCalledTimeUpRef = useRef(false);
+  const onTimeUpdateRef = useRef(onTimeUpdate);
+  const onTimeUpRef = useRef(onTimeUp);
+  const maxDurationRef = useRef(maxDuration);
 
-  // Update ref when startTime changes (only once - don't reset if already set)
+  // Keep refs updated
   useEffect(() => {
-    if (startTime && !startTimeRef.current) {
-      startTimeRef.current = startTime;
-      hasCalledTimeUpRef.current = false;
+    onTimeUpdateRef.current = onTimeUpdate;
+    onTimeUpRef.current = onTimeUp;
+    maxDurationRef.current = maxDuration;
+  }, [onTimeUpdate, onTimeUp, maxDuration]);
+
+  // Update ref when startTime changes or when game restarts
+  useEffect(() => {
+    if (startTime && isRunning) {
+      // Only update if it's a new startTime (different from current) or not set yet
+      if (!startTimeRef.current || Math.abs(startTimeRef.current - startTime) > 1000) {
+        startTimeRef.current = startTime;
+        hasCalledTimeUpRef.current = false;
+        // Reset remaining time when starting
+        setRemainingTime(maxDurationRef.current);
+      }
     }
-  }, [startTime]);
+  }, [startTime, isRunning]);
 
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isRunning) {
+      // Reset when stopped
+      if (startTimeRef.current) {
+        setRemainingTime(maxDurationRef.current);
+      }
+      return;
+    }
 
-    // Start local timer even if startTime not yet received
+    // Use startTime from ref, or fallback to local time if not yet received
     const localStartTime = startTimeRef.current || Date.now();
+    
+    // If we don't have a startTime yet, set it now
+    if (!startTimeRef.current) {
+      startTimeRef.current = localStartTime;
+    }
 
     const updateTime = () => {
       const now = Date.now();
-      const elapsed = Math.floor((now - localStartTime) / 1000);
-      const remaining = Math.max(0, maxDuration - (now - localStartTime));
-      const remainingSeconds = Math.floor(remaining / 1000);
+      const elapsed = now - localStartTime;
+      const remaining = Math.max(0, maxDurationRef.current - elapsed);
 
-      setElapsedTime(elapsed);
       setRemainingTime(remaining);
-      onTimeUpdate?.(elapsed);
+      onTimeUpdateRef.current?.(Math.floor(elapsed / 1000));
 
       // Call onTimeUp when timer reaches 0
       if (remaining <= 0 && !hasCalledTimeUpRef.current) {
         hasCalledTimeUpRef.current = true;
-        onTimeUp?.();
+        onTimeUpRef.current?.();
       }
     };
 
@@ -54,7 +77,7 @@ export function GameTimer({ isRunning, startTime, maxDuration = 300000, onTimeUp
     const interval = setInterval(updateTime, 100);
 
     return () => clearInterval(interval);
-  }, [isRunning, maxDuration, onTimeUpdate, onTimeUp]);
+  }, [isRunning]);
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);

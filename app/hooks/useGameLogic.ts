@@ -82,8 +82,7 @@ export const useGameLogic = () => {
       const newPiece = createPiece(prev.nextPiece);
       const nextPiece = getRandomTetromino();
 
-      // Check if game is over - piece can't be placed at its position
-      // First check with standard validation
+      // Check if game is over - piece can't be placed at its spawn position
       if (!isValidPosition(prev.board, newPiece.shape, newPiece.position)) {
         const newHighScore = Math.max(prev.score, prev.highScore);
         if (prev.score > prev.highScore) {
@@ -98,34 +97,6 @@ export const useGameLogic = () => {
         };
       }
 
-      // Additional check: Even if piece is above board (y=-1), check if any cells
-      // that would be ON the board collide with existing pieces
-      for (let y = 0; y < newPiece.shape.length; y++) {
-        for (let x = 0; x < newPiece.shape[y].length; x++) {
-          if (newPiece.shape[y][x]) {
-            const boardY = newPiece.position.y + y;
-            const boardX = newPiece.position.x + x;
-
-            // If this cell is on the visible board and collides, game over
-            if (boardY >= 0 && boardX >= 0 && boardX < BOARD_WIDTH) {
-              if (prev.board[boardY] && prev.board[boardY][boardX] && prev.board[boardY][boardX].filled) {
-                const newHighScore = Math.max(prev.score, prev.highScore);
-                if (prev.score > prev.highScore) {
-                  saveHighScore(prev.score);
-                }
-                return {
-                  ...prev,
-                  gameOver: true,
-                  isPlaying: false,
-                  currentPiece: null,
-                  highScore: newHighScore,
-                };
-              }
-            }
-          }
-        }
-      }
-
       return {
         ...prev,
         currentPiece: newPiece,
@@ -138,29 +109,6 @@ export const useGameLogic = () => {
   const lockPiece = useCallback(() => {
     setGameState(prev => {
       if (!prev.currentPiece) return prev;
-
-      // Check if any part of the piece is above the visible board (game over)
-      for (let y = 0; y < prev.currentPiece.shape.length; y++) {
-        for (let x = 0; x < prev.currentPiece.shape[y].length; x++) {
-          if (prev.currentPiece.shape[y][x]) {
-            const boardY = prev.currentPiece.position.y + y;
-            if (boardY < 0) {
-              // Game over - piece locked above the visible board
-              const newHighScore = Math.max(prev.score, prev.highScore);
-              if (prev.score > prev.highScore) {
-                saveHighScore(prev.score);
-              }
-              return {
-                ...prev,
-                gameOver: true,
-                isPlaying: false,
-                currentPiece: null,
-                highScore: newHighScore,
-              };
-            }
-          }
-        }
-      }
 
       // Merge piece to board
       let newBoard = mergePieceToBoard(prev.board, prev.currentPiece);
@@ -235,8 +183,88 @@ export const useGameLogic = () => {
           // Lock delay = same as drop speed (based on level)
           const lockDelay = calculateSpeed(prev.level);
           lockTimerRef.current = setTimeout(() => {
-            lockPiece();
             lockTimerRef.current = null;
+
+            // After lock delay, check current state and decide what to do
+            setGameState(current => {
+              if (!current.currentPiece || current.isPaused || !current.isPlaying) {
+                return current;
+              }
+
+              const canMoveDown = isValidPosition(
+                current.board,
+                current.currentPiece.shape,
+                {
+                  x: current.currentPiece.position.x,
+                  y: current.currentPiece.position.y + 1,
+                }
+              );
+
+              if (canMoveDown) {
+                // Piece can move down - just move it and continue game
+                return {
+                  ...current,
+                  currentPiece: {
+                    ...current.currentPiece,
+                    position: {
+                      x: current.currentPiece.position.x,
+                      y: current.currentPiece.position.y + 1,
+                    },
+                  },
+                };
+              } else {
+                // Piece cannot move down - check if ALL filled blocks are above the board
+                // Find the lowest (highest Y value) filled block
+                let lowestBlockY = -Infinity;
+                for (let y = 0; y < current.currentPiece.shape.length; y++) {
+                  for (let x = 0; x < current.currentPiece.shape[y].length; x++) {
+                    if (current.currentPiece.shape[y][x]) {
+                      const blockY = current.currentPiece.position.y + y;
+                      lowestBlockY = Math.max(lowestBlockY, blockY);
+                    }
+                  }
+                }
+
+                // Game over only if the LOWEST block is above the visible board
+                const isAboveBoard = lowestBlockY < 0;
+
+                if (isAboveBoard) {
+                  // GAME OVER - piece is stuck completely above the visible board
+                  const newHighScore = Math.max(current.score, current.highScore);
+                  if (current.score > current.highScore) {
+                    saveHighScore(current.score);
+                  }
+                  return {
+                    ...current,
+                    gameOver: true,
+                    isPlaying: false,
+                    currentPiece: null,
+                    highScore: newHighScore,
+                  };
+                } else {
+                  // Normal lock - at least part of the piece is on the visible board
+                  // Lock the piece inline instead of calling lockPiece()
+                  const newBoard = mergePieceToBoard(current.board, current.currentPiece);
+                  const { newBoard: clearedBoard, linesCleared } = clearLines(newBoard);
+                  const newLines = current.lines + linesCleared;
+                  const newLevel = calculateLevel(newLines);
+                  const scoreGain = calculateScore(linesCleared, current.level);
+                  const newScore = current.score + scoreGain;
+
+                  // Return locked state, then spawn new piece
+                  setTimeout(spawnPiece, 0);
+
+                  return {
+                    ...current,
+                    board: clearedBoard,
+                    currentPiece: null,
+                    score: newScore,
+                    lines: newLines,
+                    level: newLevel,
+                  };
+                }
+              }
+            });
           }, lockDelay);
         }
       } else {

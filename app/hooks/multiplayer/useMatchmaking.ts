@@ -7,6 +7,7 @@ import { useDebug } from '../../contexts/DebugContext';
 interface MatchFoundData {
   opponent: string;
   roomId: string;
+  matchFoundTime?: number;
 }
 
 export type MatchmakingState = 'idle' | 'searching' | 'found' | 'timeout' | 'error';
@@ -43,7 +44,8 @@ export function useMatchmaking() {
 
     const handleMatchFound = (data: MatchFoundData) => {
       setState('found');
-      setMatchData(data);
+      // Use local time to avoid clock skew
+      setMatchData({ ...data, matchFoundTime: Date.now() });
       addLog({
         type: 'event',
         title: `Match znaleziony! vs ${data.opponent}`,

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useGameLogic } from '../../hooks/useGameLogic';
 import { useKeyboardControls } from '../../hooks/useKeyboardControls';
 import { GameBoard } from '../../components/GameBoard';
@@ -12,6 +13,7 @@ import { ThemeSelector } from '../../components/ThemeSelector';
 import { useTheme, ThemeId } from '../../contexts/ThemeContext';
 
 export default function SoloGame() {
+  const router = useRouter();
   const { gameState, actions } = useGameLogic();
   const { themeId, setTheme } = useTheme();
 
@@ -22,10 +24,16 @@ export default function SoloGame() {
     gameOver: gameState.gameOver,
   });
 
-  // Theme keyboard shortcuts (1, 2, 3)
+  // Theme keyboard shortcuts (1, 2, 3) and ESC to go back
   useEffect(() => {
     const handleThemeKeypress = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // ESC key - go back to lobby
+      if (e.key === 'Escape') {
+        router.push('/');
         return;
       }
 
@@ -42,7 +50,7 @@ export default function SoloGame() {
 
     window.addEventListener('keydown', handleThemeKeypress);
     return () => window.removeEventListener('keydown', handleThemeKeypress);
-  }, [setTheme]);
+  }, [setTheme, router]);
 
   const isNewHighScore = gameState.gameOver && gameState.score === gameState.highScore && gameState.score > 0;
 
@@ -159,13 +167,45 @@ export default function SoloGame() {
 
   return (
     <div className={`${getBackgroundClass()} flex flex-col items-center justify-center p-4`}>
-      <div className="mb-4">
-        <ThemeSelector />
-      </div>
+      {/* Header with back button, title, and theme selector */}
+      <div className="w-full max-w-4xl flex items-center justify-between mb-6">
+        {/* Back to lobby button */}
+        <button
+          onClick={() => router.push('/')}
+          className={`
+            theme-preview p-3 hover:scale-105 transition-all cursor-pointer
+            ${themeId === 'neon-tokyo' ? 'theme-preview-neon' : ''}
+            ${themeId === 'brutalist' ? 'theme-preview-brutal' : ''}
+            ${themeId === 'organic-flow' ? 'theme-preview-organic' : ''}
+          `}
+          aria-label="Back to lobby"
+          title="Back to lobby (Esc)"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+        </button>
 
-      <h1 className={`${getTitleClass()} mb-6`}>
-        {getTitleText()}
-      </h1>
+        {/* Title */}
+        <h1 className={`${getTitleClass()}`}>
+          {getTitleText()}
+        </h1>
+
+        {/* Theme selector */}
+        <div>
+          <ThemeSelector />
+        </div>
+      </div>
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-center md:items-start">
         <div className="relative">
@@ -268,6 +308,7 @@ export default function SoloGame() {
           <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>Up</span> Rotate |{' '}
           <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>Space</span> Hard Drop |{' '}
           <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>P</span> Pause |{' '}
+          <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>ESC</span> Menu |{' '}
           <span className={themeId === 'organic-flow' ? 'text-white/90' : 'text-gray-300'}>1-3</span> Theme
         </p>
       </div>

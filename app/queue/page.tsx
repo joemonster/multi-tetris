@@ -77,6 +77,7 @@ export default function QueuePage() {
         <MatchFound
           playerNickname={nickname}
           opponentNickname={matchData.opponent}
+          matchFoundTime={matchData.matchFoundTime}
           onStart={handleGameStart}
         />
       )}

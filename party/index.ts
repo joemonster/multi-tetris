@@ -273,12 +273,13 @@ export default class TetrisServer implements Party.Server {
     this.queue.delete(player1Id);
     this.queue.delete(player2Id);
 
-    // Create room
+    // Create room with match time
+    const matchFoundTime = Date.now();
     const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     this.games.set(roomId, {
       players: [player1Id, player2Id],
       nicknames: [player1Data.nickname, player2Data.nickname],
-      createdAt: Date.now(),
+      createdAt: matchFoundTime,
       gameOverPlayers: new Set(),
     });
 
@@ -289,12 +290,13 @@ export default class TetrisServer implements Party.Server {
     const conn1 = this.playerConnections.get(player1Id);
     const conn2 = this.playerConnections.get(player2Id);
 
-    // Notify players
+    // Notify players with match found time for synchronized countdown
     if (conn1) {
       conn1.send(JSON.stringify({
         type: 'match_found',
         opponent: player2Data.nickname,
-        roomId
+        roomId,
+        matchFoundTime
       }));
     }
 
@@ -302,7 +304,8 @@ export default class TetrisServer implements Party.Server {
       conn2.send(JSON.stringify({
         type: 'match_found',
         opponent: player1Data.nickname,
-        roomId
+        roomId,
+        matchFoundTime
       }));
     }
 

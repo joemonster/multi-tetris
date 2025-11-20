@@ -39,6 +39,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   // Throttle ref for sending updates
   const lastUpdateRef = useRef<number>(0);
   const throttleMs = 100;
+  const gameStartTimeSetRef = useRef(false);
 
   // Auto-start game when component mounts (player navigated here from queue)
   useEffect(() => {
@@ -139,9 +140,11 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
           color: 'green',
         });
       }
-      // Store start time from server
-      if (data.startTime) {
-        setGameStartTime(data.startTime);
+      // Store start time from server - only set once to avoid timer jumps
+      // We use local time to avoid clock skew issues between client and server
+      if (data.startTime && !gameStartTimeSetRef.current) {
+        setGameStartTime(Date.now());
+        gameStartTimeSetRef.current = true;
       }
       // Game is auto-started, but this can serve as a backup
       if (!gameStarted) {
@@ -188,7 +191,11 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       // Reset game state
       setGameEndData(null);
       setRematchRequest(null);
-      setGameStartTime(data.startTime);
+      // Reset the ref flag for rematch
+      gameStartTimeSetRef.current = false;
+      // Use local time to avoid clock skew
+      setGameStartTime(Date.now());
+      gameStartTimeSetRef.current = true;
       setGameStarted(false);
 
       addLog({
