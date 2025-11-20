@@ -20,6 +20,7 @@ const TEXT_COLOR_MAP = {
 export function GameDebugPanel() {
   const { logs, onlineCount, clearLogs } = useDebug();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -30,26 +31,41 @@ export function GameDebugPanel() {
     });
   };
 
+  const formatData = (data: unknown): string => {
+    if (data === null || data === undefined) return '';
+    if (typeof data === 'string') return data;
+    if (typeof data === 'object') {
+      return JSON.stringify(data, null, 2);
+    }
+    return String(data);
+  };
+
+  const handleLogClick = (logId: string) => {
+    setExpandedLogId(expandedLogId === logId ? null : logId);
+  };
+
   return (
     <div
-      className={`fixed bottom-4 right-4 z-40 transition-all duration-300 ${
-        isExpanded ? 'w-96 h-96' : 'w-32'
-      }`}
+      className={`fixed right-0 top-0 z-40 transition-all duration-300 ${
+        isExpanded ? 'w-80 h-screen' : 'w-12'
+      } bg-[var(--bg-terminal)] border-l border-[var(--terminal-green)] overflow-hidden`}
     >
       {/* Toggle Button */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full terminal-button mb-2 text-xs py-2"
+        className={`w-full terminal-button text-xs py-2 ${isExpanded ? 'mb-2' : 'h-full flex items-center justify-center'}`}
       >
-        {isExpanded ? '[ - ] DEBUG' : '[ + ] DEBUG'}
+        {isExpanded ? '[ - ] DEBUG' : (
+          <span className="[writing-mode:vertical-rl] text-center">[ + ] DEBUG</span>
+        )}
       </button>
 
       {/* Debug Panel */}
       {isExpanded && (
-        <div className="terminal-panel p-3 h-full flex flex-col bg-[var(--bg-terminal)]/95 backdrop-blur-sm">
+        <div className="h-[calc(100vh-4rem)] flex flex-col p-4">
           {/* Header */}
-          <div className="flex items-center justify-between mb-3 pb-2 border-b border-[var(--terminal-green)]">
-            <span className="text-[var(--terminal-green)] font-mono text-xs font-bold text-glow">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--terminal-green)]">
+            <span className="text-[var(--terminal-green)] font-mono text-sm font-bold text-glow">
               &gt; SERVER MONITOR
             </span>
             <button
@@ -61,45 +77,56 @@ export function GameDebugPanel() {
           </div>
 
           {/* Stats */}
-          <div className="text-[var(--terminal-gray)] font-mono text-xs space-y-1 mb-3 pb-2 border-b border-[var(--terminal-gray)]/20">
+          <div className="text-[var(--terminal-gray)] font-mono text-xs space-y-1 mb-4 pb-3 border-b border-[var(--terminal-gray)]/20">
             <div>Gracze: <span className="text-[var(--terminal-green)] font-bold">{onlineCount}</span></div>
             <div>Logi: <span className="text-[var(--terminal-green)] font-bold">{logs.length}/100</span></div>
           </div>
 
           {/* Logs */}
-          <div className="flex-1 overflow-y-auto space-y-1">
+          <div className="flex-1 overflow-y-auto space-y-2">
             {logs.length === 0 ? (
               <div className="text-[var(--terminal-gray)] text-xs">
                 Oczekiwanie...
               </div>
             ) : (
-              logs.slice(0, 15).map((log) => (
-                <div
-                  key={log.id}
-                  className={`border border-l-4 rounded px-2 py-1 text-xs font-mono ${COLOR_MAP[log.color]}`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <div className={`font-bold break-words ${TEXT_COLOR_MAP[log.color]}`}>
-                        {log.title}
-                      </div>
-                      {log.data !== undefined && log.data !== null && (
-                        <div className="text-[var(--terminal-gray)] text-xs mt-0.5 break-words max-h-12 overflow-hidden">
-                          {(() => {
-                            const data = log.data as unknown;
-                            return typeof data === 'string'
-                              ? (data as string).substring(0, 80)
-                              : JSON.stringify(data as Record<string, unknown>).substring(0, 80);
-                          })()}
+              logs.slice(0, 20).map((log) => {
+                const isExpanded = expandedLogId === log.id;
+                return (
+                  <div
+                    key={log.id}
+                    onClick={() => handleLogClick(log.id)}
+                    className={`border border-l-4 rounded px-2 py-1 text-xs font-mono cursor-pointer transition-all ${
+                      COLOR_MAP[log.color]
+                    } ${isExpanded ? 'ring-2 ring-[var(--terminal-green)]' : ''}`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className={`font-bold break-words ${TEXT_COLOR_MAP[log.color]}`}>
+                          {log.title}
                         </div>
-                      )}
+                        {log.data !== undefined && log.data !== null && (
+                          <div className={`text-[var(--terminal-gray)] text-xs mt-1 break-words whitespace-pre-wrap ${
+                            isExpanded ? 'max-h-none overflow-visible' : 'max-h-12 overflow-hidden'
+                          }`}>
+                            {isExpanded 
+                              ? formatData(log.data)
+                              : formatData(log.data).substring(0, 100) + (formatData(log.data).length > 100 ? '...' : '')
+                            }
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-[var(--terminal-gray)] text-xs whitespace-nowrap flex-shrink-0">
+                        {formatTime(log.timestamp)}
+                      </div>
                     </div>
-                    <div className="text-[var(--terminal-gray)] text-xs whitespace-nowrap">
-                      {formatTime(log.timestamp)}
-                    </div>
+                    {isExpanded && (
+                      <div className="mt-2 text-[var(--terminal-gray)] text-xs italic">
+                        Kliknij aby zwinąć
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

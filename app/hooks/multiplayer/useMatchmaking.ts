@@ -6,6 +6,7 @@ import { useDebug } from '../../contexts/DebugContext';
 
 interface MatchFoundData {
   opponent: string;
+  playerNickname?: string; // Player's own nickname from server
   roomId: string;
   matchFoundTime?: number;
 }
@@ -47,6 +48,7 @@ export function useMatchmaking() {
       // Use server time if provided, otherwise use local time
       const matchFoundTime = data.matchFoundTime || Date.now();
       setMatchData({ ...data, matchFoundTime });
+      
       addLog({
         type: 'event',
         title: `Match znaleziony! vs ${data.opponent}`,
