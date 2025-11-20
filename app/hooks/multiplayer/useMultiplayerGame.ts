@@ -24,7 +24,13 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   const [gameResult, setGameResult] = useState<{ winner: string; reason: string } | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameStartTime, setGameStartTime] = useState<number | undefined>();
-  const [gameEndData, setGameEndData] = useState<{ winner: string; reason: string; roomId: string } | null>(null);
+  const [gameEndData, setGameEndData] = useState<{ winner: string; reason: string; roomId: string; loser?: string } | null>(null);
+  const [finalPlayerScore, setFinalPlayerScore] = useState<number>(0);
+  const [finalPlayerLines, setFinalPlayerLines] = useState<number>(0);
+  const [finalPlayerLevel, setFinalPlayerLevel] = useState<number>(0);
+  const [finalOpponentScore, setFinalOpponentScore] = useState<number>(0);
+  const [finalOpponentLines, setFinalOpponentLines] = useState<number>(0);
+  const [finalOpponentLevel, setFinalOpponentLevel] = useState<number>(0);
   const [rematchRequest, setRematchRequest] = useState<{ playerId: string; playerNickname: string } | null>(null);
   const [rematchTimeout, setRematchTimeout] = useState<number>(10);
   const [waitingForRematchResponse, setWaitingForRematchResponse] = useState(false);
@@ -42,6 +48,8 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   const lastUpdateRef = useRef<number>(0);
   const throttleMs = 100;
   const gameStartTimeSetRef = useRef(false);
+  const timeLimitEndedRef = useRef(false);
+  const gameOverSentRef = useRef(false);
 
   // Auto-start game when component mounts (player navigated here from queue)
   useEffect(() => {
@@ -54,6 +62,41 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       return () => clearTimeout(timer);
     }
   }, [isConnected, roomId, gameStarted, gameLogic.actions]);
+
+  // Send game_over immediately when game ends (not throttled)
+  useEffect(() => {
+    if (!isConnected || !roomId) return;
+    
+    // If game over and not already sent and not time limit
+    if (gameLogic.gameState.gameOver && !gameOverSentRef.current && !timeLimitEndedRef.current) {
+      gameOverSentRef.current = true;
+      
+      // Send final game update with current score
+      emit('game_update', {
+        type: 'game_update',
+        roomId,
+        board: gameLogic.gameState.board,
+        score: gameLogic.gameState.score,
+        lines: gameLogic.gameState.lines,
+        level: gameLogic.gameState.level,
+        gameOver: true,
+      });
+      
+      // Send game_over event immediately
+      emit('game_over', { roomId });
+      
+      addLog({
+        type: 'event',
+        title: 'Wysłano game_over do serwera',
+        color: 'orange',
+      });
+    }
+    
+    // Reset flag when game restarts
+    if (!gameLogic.gameState.gameOver && gameOverSentRef.current) {
+      gameOverSentRef.current = false;
+    }
+  }, [isConnected, roomId, gameLogic.gameState.gameOver, emit, addLog]);
 
   // Send game state to server (throttled)
   useEffect(() => {
@@ -74,11 +117,6 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     };
 
     emit('game_update', updateData);
-
-    // If game over, notify server
-    if (gameLogic.gameState.gameOver) {
-      emit('game_over', { roomId });
-    }
   }, [
     isConnected,
     roomId,
@@ -155,16 +193,40 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       }
     };
 
-    const handleGameEnd = (data: { winner: string; reason: string; roomId: string }) => {
+    const handleGameEnd = (data: { winner: string; reason: string; roomId: string; loser?: string }) => {
+      console.log('handleGameEnd called with:', data);
+      
+      // Save final scores BEFORE resetting game
+      const finalPlayerScore = gameLogic.gameState.score;
+      const finalPlayerLines = gameLogic.gameState.lines;
+      const finalPlayerLevel = gameLogic.gameState.level;
+      const finalOpponentScore = opponentState?.score || 0;
+      const finalOpponentLines = opponentState?.lines || 0;
+      const finalOpponentLevel = opponentState?.level || 0;
+      
+      console.log('Final scores:', {
+        player: { score: finalPlayerScore, lines: finalPlayerLines, level: finalPlayerLevel },
+        opponent: { score: finalOpponentScore, lines: finalOpponentLines, level: finalOpponentLevel }
+      });
+      
+      setFinalPlayerScore(finalPlayerScore);
+      setFinalPlayerLines(finalPlayerLines);
+      setFinalPlayerLevel(finalPlayerLevel);
+      setFinalOpponentScore(finalOpponentScore);
+      setFinalOpponentLines(finalOpponentLines);
+      setFinalOpponentLevel(finalOpponentLevel);
+      
       setGameEndData(data);
-      // Stop the game immediately for both players
-      gameLogic.actions.resetGame();
+      // Stop the game (but don't reset yet - we need scores for modal)
+      gameLogic.actions.endGame();
       addLog({
         type: 'event',
         title: `Koniec gry - ${data.winner} wygrywa`,
-        data: { reason: data.reason },
+        data: { reason: data.reason, roomId: data.roomId },
         color: 'orange',
       });
+      
+      console.log('gameEndData set, modal should appear');
     };
 
     const handleRematchRequest = (data: { playerId: string; playerNickname: string; roomId: string }) => {
@@ -194,10 +256,18 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     const handleRematchStart = (data: { roomId: string; opponent: string; startTime: number }) => {
       // Reset game state
       setGameEndData(null);
+      setFinalPlayerScore(0);
+      setFinalPlayerLines(0);
+      setFinalPlayerLevel(0);
+      setFinalOpponentScore(0);
+      setFinalOpponentLines(0);
+      setFinalOpponentLevel(0);
       setRematchRequest(null);
       setWaitingForRematchResponse(false);
-      // Reset the ref flag for rematch
+      // Reset the ref flags for rematch
       gameStartTimeSetRef.current = false;
+      timeLimitEndedRef.current = false;
+      gameOverSentRef.current = false;
       // Use local time to avoid clock skew
       setGameStartTime(Date.now());
       gameStartTimeSetRef.current = true;
@@ -277,6 +347,41 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     ? opponentNickname
     : null;
 
+  // Function to handle time limit end
+  const handleTimeLimitEnd = useCallback(() => {
+    if (!gameLogic.gameState.isPlaying || gameLogic.gameState.gameOver) {
+      return; // Already ended
+    }
+
+    // Mark that time limit ended to prevent duplicate game_over events
+    timeLimitEndedRef.current = true;
+
+    // Stop the game locally (keep score visible)
+    gameLogic.actions.endGame();
+
+    // Send final game update with current score
+    emit('game_update', {
+      type: 'game_update',
+      roomId,
+      board: gameLogic.gameState.board,
+      score: gameLogic.gameState.score,
+      lines: gameLogic.gameState.lines,
+      level: gameLogic.gameState.level,
+      gameOver: true,
+    });
+
+    // Send game_over event with time_limit reason
+    setTimeout(() => {
+      emit('game_over', { roomId, reason: 'time_limit' });
+    }, 50);
+
+    addLog({
+      type: 'event',
+      title: 'Limit czasu osiągnięty',
+      color: 'orange',
+    });
+  }, [gameLogic, emit, roomId, addLog]);
+
   // Function to send rematch request
   const sendRematchRequest = useCallback(() => {
     emit('rematch_request', { roomId });
@@ -328,6 +433,12 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
 
     // Game end state
     gameEndData,
+    finalPlayerScore,
+    finalPlayerLines,
+    finalPlayerLevel,
+    finalOpponentScore,
+    finalOpponentLines,
+    finalOpponentLevel,
     rematchRequest,
     rematchTimeout,
 
@@ -335,5 +446,8 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
     waitingForRematchResponse,
     rematchWaitTimeout,
     sendRematchRequest,
+
+    // Time limit handler
+    handleTimeLimitEnd,
   };
 }

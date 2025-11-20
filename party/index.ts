@@ -12,7 +12,11 @@ interface GameRoom {
   nicknames: string[];
   createdAt: number;
   startTime?: number;
-  gameOverPlayers: Set<string>; // Players who have game over
+  gameOverPlayers: Set<string>; // Players who lost BEFORE time limit (not time_limit)
+  playerScores: Map<string, number>; // Current scores for each player
+  playerLines: Map<string, number>; // Current lines for each player
+  playerLevels: Map<string, number>; // Current levels for each player
+  timeLimitEnded: Set<string>; // Players who sent time_limit game_over
   rematchRequested?: {
     playerId: string;
     timestamp: number;
@@ -185,6 +189,14 @@ export default class TetrisServer implements Party.Server {
     const game = this.games.get(roomId);
     if (!game) return;
 
+    // Update player stats
+    const score = (data.score as number) || 0;
+    const lines = (data.lines as number) || 0;
+    const level = (data.level as number) || 0;
+    game.playerScores.set(conn.id, score);
+    game.playerLines.set(conn.id, lines);
+    game.playerLevels.set(conn.id, level);
+
     // Send to opponent
     const opponentIndex = game.players.indexOf(conn.id) === 0 ? 1 : 0;
     const opponentId = game.players[opponentIndex];
@@ -209,38 +221,262 @@ export default class TetrisServer implements Party.Server {
     const playerIndex = game.players.indexOf(conn.id);
     if (playerIndex === -1) return; // Player not in this game
 
-    // Mark player as game over
-    game.gameOverPlayers.add(conn.id);
-
-    const opponentIndex = playerIndex === 0 ? 1 : 0;
-    const opponentId = game.players[opponentIndex];
-    const playerNickname = game.nicknames[playerIndex];
-    const opponentNickname = game.nicknames[opponentIndex];
-
-    console.log(`Player ${playerNickname} game over in ${roomId}`);
-
     const reason = (data?.reason as string) || 'opponent_game_over';
+    const isTimeLimit = reason === 'time_limit';
 
-    // Notify both players - opponent wins
-    const opponentConn = this.playerConnections.get(opponentId);
-    if (opponentConn) {
-      opponentConn.send(JSON.stringify({
+    // If time limit, mark this player and check if both players have ended
+    if (isTimeLimit) {
+      const opponentIndex = playerIndex === 0 ? 1 : 0;
+      const opponentId = game.players[opponentIndex];
+      const playerNickname = game.nicknames[playerIndex];
+      const opponentNickname = game.nicknames[opponentIndex];
+      
+      // Check if opponent already lost before time limit - if so, opponent wins
+      if (game.gameOverPlayers.has(opponentId)) {
+        const playerScore = game.playerScores.get(conn.id) || 0;
+        const opponentScore = game.playerScores.get(opponentId) || 0;
+        
+        console.log(`Player ${playerNickname} ended due to time limit, but opponent ${opponentNickname} lost before time limit in ${roomId}`);
+        
+      // Opponent wins (they lost before time limit, this player ended due to time limit)
+      // Send same neutral message to both players
+      const gameEndMessage = JSON.stringify({
         type: 'game_end',
         winner: opponentNickname,
-        reason: reason === 'time_limit' ? 'Limit czasu' : `${playerNickname} przegrał`,
+        loser: playerNickname,
+        reason: `${playerNickname} przegrał przed czasem (wynik: ${opponentScore} vs ${playerScore})`,
         roomId
-      }));
+      });
+      
+      const opponentConn = this.playerConnections.get(opponentId);
+      if (opponentConn) {
+        opponentConn.send(gameEndMessage);
+      }
+      
+      const timeLimitLoserConn = this.playerConnections.get(conn.id);
+      if (timeLimitLoserConn) {
+        timeLimitLoserConn.send(gameEndMessage);
+      }
+        
+        game.timeLimitEnded.add(conn.id);
+        return;
+      }
+      
+      game.timeLimitEnded.add(conn.id);
+      
+      // Check if both players have sent time_limit
+      if (game.timeLimitEnded.size === 2) {
+        // Both players ended due to time limit - compare scores
+        const player1Id = game.players[0];
+        const player2Id = game.players[1];
+        const player1Score = game.playerScores.get(player1Id) || 0;
+        const player2Score = game.playerScores.get(player2Id) || 0;
+        
+        let winnerNickname: string;
+        let reasonText: string;
+        
+        if (player1Score > player2Score) {
+          winnerNickname = game.nicknames[0];
+          reasonText = `Limit czasu - wyższy wynik (${player1Score} vs ${player2Score})`;
+        } else if (player2Score > player1Score) {
+          winnerNickname = game.nicknames[1];
+          reasonText = `Limit czasu - wyższy wynik (${player2Score} vs ${player1Score})`;
+        } else {
+          // Tie - could be random or both win, let's say player 1 wins on tie
+          winnerNickname = game.nicknames[0];
+          reasonText = `Limit czasu - remis (${player1Score} vs ${player2Score})`;
+        }
+        
+        // Notify both players with same neutral message - client will personalize it
+        const loserNickname = winnerNickname === game.nicknames[0] ? game.nicknames[1] : game.nicknames[0];
+        
+        const gameEndMessage = JSON.stringify({
+          type: 'game_end',
+          winner: winnerNickname,
+          loser: loserNickname,
+          reason: reasonText,
+          roomId
+        });
+        
+        // Send same message to both players
+        game.players.forEach((playerId) => {
+          const playerConn = this.playerConnections.get(playerId);
+          if (playerConn) {
+            playerConn.send(gameEndMessage);
+          }
+        });
+        
+        // Mark both as game over
+        game.gameOverPlayers.add(player1Id);
+        game.gameOverPlayers.add(player2Id);
+        
+        console.log(`Time limit ended in ${roomId} - Winner: ${winnerNickname} (${player1Score} vs ${player2Score})`);
+        return;
+      } else {
+        // Only one player has sent time_limit, wait a bit for the other
+        // Set a timeout to handle if the other player doesn't respond
+        setTimeout(() => {
+          const currentGame = this.games.get(roomId);
+          if (!currentGame) return;
+          
+          // Check if opponent lost before time limit
+          if (currentGame.gameOverPlayers.has(opponentId)) {
+            // Opponent lost before time limit - they win
+            const playerScore = currentGame.playerScores.get(conn.id) || 0;
+            const opponentScore = currentGame.playerScores.get(opponentId) || 0;
+            
+            // Send same neutral message to both players
+            const gameEndMessage = JSON.stringify({
+              type: 'game_end',
+              winner: opponentNickname,
+              loser: playerNickname,
+              reason: `${playerNickname} przegrał przed czasem (wynik: ${opponentScore} vs ${playerScore})`,
+              roomId
+            });
+            
+            const winnerConn = this.playerConnections.get(opponentId);
+            const loserConn = this.playerConnections.get(conn.id);
+            
+            if (winnerConn) {
+              winnerConn.send(gameEndMessage);
+            }
+            if (loserConn) {
+              loserConn.send(gameEndMessage);
+            }
+            
+            currentGame.timeLimitEnded.add(conn.id);
+            return;
+          }
+          
+          // If still only one player has ended due to time limit, proceed with score comparison
+          if (currentGame.timeLimitEnded.size === 1 && currentGame.timeLimitEnded.has(conn.id)) {
+            const player1Id = currentGame.players[0];
+            const player2Id = currentGame.players[1];
+            const player1Score = currentGame.playerScores.get(player1Id) || 0;
+            const player2Score = currentGame.playerScores.get(player2Id) || 0;
+            
+            let winnerNickname: string;
+            let reasonText: string;
+            
+            if (player1Score > player2Score) {
+              winnerNickname = currentGame.nicknames[0];
+              reasonText = `Limit czasu - wyższy wynik (${player1Score} vs ${player2Score})`;
+            } else if (player2Score > player1Score) {
+              winnerNickname = currentGame.nicknames[1];
+              reasonText = `Limit czasu - wyższy wynik (${player2Score} vs ${player1Score})`;
+            } else {
+              winnerNickname = currentGame.nicknames[0];
+              reasonText = `Limit czasu - remis (${player1Score} vs ${player2Score})`;
+            }
+            
+            // Notify both players with same neutral message - client will personalize it
+            const loserNickname = winnerNickname === currentGame.nicknames[0] ? currentGame.nicknames[1] : currentGame.nicknames[0];
+            
+            const gameEndMessage = JSON.stringify({
+              type: 'game_end',
+              winner: winnerNickname,
+              loser: loserNickname,
+              reason: reasonText,
+              roomId
+            });
+            
+            // Send same message to both players
+            currentGame.players.forEach((playerId) => {
+              const playerConn = this.playerConnections.get(playerId);
+              if (playerConn) {
+                playerConn.send(gameEndMessage);
+              }
+            });
+            
+            currentGame.gameOverPlayers.add(player1Id);
+            currentGame.gameOverPlayers.add(player2Id);
+          }
+        }, 1000); // Wait 1 second for the other player
+        
+        return; // Don't proceed with normal game over handling
+      }
     }
 
-    // Notify the loser
-    const loserConn = this.playerConnections.get(conn.id);
-    if (loserConn) {
-      loserConn.send(JSON.stringify({
+    // Normal game over (not time limit) - player lost before time limit
+    // If someone loses before time limit, they ALWAYS lose regardless of score
+    
+    // IMPORTANT: Check if opponent ended due to time limit - if so, this player loses immediately
+    const opponentIndex = playerIndex === 0 ? 1 : 0;
+    const opponentId = game.players[opponentIndex];
+    
+    // If opponent already ended due to time limit, this player loses (they lost before time limit)
+    if (game.timeLimitEnded.has(opponentId)) {
+      const playerNickname = game.nicknames[playerIndex];
+      const opponentNickname = game.nicknames[opponentIndex];
+      const playerScore = game.playerScores.get(conn.id) || 0;
+      const opponentScore = game.playerScores.get(opponentId) || 0;
+      
+      console.log(`Player ${playerNickname} lost before time limit, but opponent ${opponentNickname} ended due to time limit in ${roomId}`);
+      
+      // Opponent wins (they ended due to time limit, this player lost before)
+      // Send same neutral message to both players
+      const gameEndMessage = JSON.stringify({
         type: 'game_end',
         winner: opponentNickname,
-        reason: reason === 'time_limit' ? 'Limit czasu' : `${playerNickname} przegrał`,
+        loser: playerNickname,
+        reason: `${playerNickname} przegrał przed czasem (wynik: ${opponentScore} vs ${playerScore})`,
         roomId
-      }));
+      });
+      
+      const opponentConn = this.playerConnections.get(opponentId);
+      if (opponentConn) {
+        opponentConn.send(gameEndMessage);
+      }
+      
+      const loserConn = this.playerConnections.get(conn.id);
+      if (loserConn) {
+        loserConn.send(gameEndMessage);
+      }
+      
+      game.gameOverPlayers.add(conn.id);
+      return;
+    }
+    
+    // Add to gameOverPlayers (lost before time limit)
+    game.gameOverPlayers.add(conn.id);
+
+    const playerNickname = game.nicknames[playerIndex];
+    const opponentNickname = game.nicknames[opponentIndex];
+    const playerScore = game.playerScores.get(conn.id) || 0;
+    const opponentScore = game.playerScores.get(opponentId) || 0;
+
+    console.log(`Player ${playerNickname} lost before time limit in ${roomId}`);
+    console.log(`Opponent ${opponentNickname} wins immediately (could still play, but game ends)`);
+    console.log(`Scores: ${opponentNickname}=${opponentScore}, ${playerNickname}=${playerScore}`);
+
+    // IMPORTANT: When one player loses before time limit, the game ends immediately
+    // The opponent wins, even if they could still play
+    // This is NOT a remis - one player lost, so the other wins
+    
+    // Send same neutral message to both players - client will personalize it
+    const gameEndMessage = JSON.stringify({
+      type: 'game_end',
+      winner: opponentNickname,
+      loser: playerNickname,
+      reason: `${playerNickname} przegrał przed czasem${opponentScore > playerScore ? ` (wynik: ${opponentScore} vs ${playerScore})` : ''}`,
+      roomId
+    });
+    
+    // Notify both players with the same message
+    const opponentConn = this.playerConnections.get(opponentId);
+    if (opponentConn) {
+      opponentConn.send(gameEndMessage);
+      console.log(`Sent game_end to winner ${opponentNickname} (${opponentId}):`, gameEndMessage);
+    } else {
+      console.log(`ERROR: Opponent connection not found for ${opponentId}`);
+    }
+
+    const loserConn = this.playerConnections.get(conn.id);
+    if (loserConn) {
+      loserConn.send(gameEndMessage);
+      console.log(`Sent game_end to loser ${playerNickname} (${conn.id}):`, gameEndMessage);
+    } else {
+      console.log(`ERROR: Loser connection not found for ${conn.id}`);
     }
   }
 
@@ -281,6 +517,10 @@ export default class TetrisServer implements Party.Server {
       nicknames: [player1Data.nickname, player2Data.nickname],
       createdAt: matchFoundTime,
       gameOverPlayers: new Set(),
+      playerScores: new Map(),
+      playerLines: new Map(),
+      playerLevels: new Map(),
+      timeLimitEnded: new Set(),
     });
 
     this.playerRooms.set(player1Id, roomId);
@@ -399,6 +639,10 @@ export default class TetrisServer implements Party.Server {
 
     // Reset game state for rematch
     game.gameOverPlayers.clear();
+    game.playerScores.clear();
+    game.playerLines.clear();
+    game.playerLevels.clear();
+    game.timeLimitEnded.clear();
     game.rematchRequested = undefined;
     const newStartTime = Date.now();
     game.startTime = newStartTime;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface MatchFoundProps {
   playerNickname: string;
@@ -11,18 +11,31 @@ interface MatchFoundProps {
 
 export function MatchFound({ playerNickname, opponentNickname, matchFoundTime, onStart }: MatchFoundProps) {
   const [countdown, setCountdown] = useState(3);
+  const onStartRef = useRef(onStart);
+  const hasStartedRef = useRef(false);
+
+  // Keep ref updated
+  useEffect(() => {
+    onStartRef.current = onStart;
+  }, [onStart]);
 
   useEffect(() => {
+    // Prevent multiple calls
+    if (hasStartedRef.current) return;
+
     // If we have server time, use it for synchronized countdown
     if (matchFoundTime) {
       const updateCountdown = () => {
+        if (hasStartedRef.current) return;
+        
         const now = Date.now();
         const elapsed = now - matchFoundTime;
         const remaining = Math.max(0, 3000 - elapsed);
         const newCountdown = Math.ceil(remaining / 1000);
 
-        if (newCountdown <= 0) {
-          onStart();
+        if (newCountdown <= 0 && !hasStartedRef.current) {
+          hasStartedRef.current = true;
+          onStartRef.current();
         } else {
           setCountdown(newCountdown);
         }
@@ -34,11 +47,23 @@ export function MatchFound({ playerNickname, opponentNickname, matchFoundTime, o
       // Update every 100ms for smooth countdown
       const interval = setInterval(updateCountdown, 100);
 
-      return () => clearInterval(interval);
+      // Safety timeout - force start after 4 seconds max
+      const safetyTimeout = setTimeout(() => {
+        if (!hasStartedRef.current) {
+          hasStartedRef.current = true;
+          onStartRef.current();
+        }
+      }, 4000);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(safetyTimeout);
+      };
     } else {
       // Fallback to local countdown if no server time
-      if (countdown <= 0) {
-        onStart();
+      if (countdown <= 0 && !hasStartedRef.current) {
+        hasStartedRef.current = true;
+        onStartRef.current();
         return;
       }
 
@@ -46,9 +71,20 @@ export function MatchFound({ playerNickname, opponentNickname, matchFoundTime, o
         setCountdown(prev => prev - 1);
       }, 1000);
 
-      return () => clearTimeout(timer);
+      // Safety timeout for fallback
+      const safetyTimeout = setTimeout(() => {
+        if (!hasStartedRef.current) {
+          hasStartedRef.current = true;
+          onStartRef.current();
+        }
+      }, 4000);
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(safetyTimeout);
+      };
     }
-  }, [matchFoundTime, countdown, onStart]);
+  }, [matchFoundTime, countdown]);
 
   return (
     <div className="fixed inset-0 bg-[var(--bg-terminal)]/95 flex items-center justify-center z-50">

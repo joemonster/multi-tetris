@@ -38,7 +38,6 @@ export default function MultiplayerGame() {
     opponentState,
     opponentNickname,
     isOpponentDisconnected,
-    gameResult,
     isConnected,
     isPlayerLeading,
     isOpponentLeading,
@@ -46,11 +45,18 @@ export default function MultiplayerGame() {
     gameStartTime,
     emit,
     gameEndData,
+    finalPlayerScore,
+    finalPlayerLines,
+    finalPlayerLevel,
+    finalOpponentScore,
+    finalOpponentLines,
+    finalOpponentLevel,
     rematchRequest,
     rematchTimeout,
     waitingForRematchResponse,
     rematchWaitTimeout,
     sendRematchRequest,
+    handleTimeLimitEnd,
   } = useMultiplayerGame({ roomId, nickname });
 
   // Setup keyboard controls
@@ -139,10 +145,7 @@ export default function MultiplayerGame() {
             isRunning={gameState.isPlaying && !gameState.gameOver}
             startTime={gameStartTime}
             maxDuration={Number(process.env.NEXT_PUBLIC_GAME_DURATION_MS) || 300000}
-            onTimeUp={() => {
-              // Send game_over event when time is up
-              emit('game_over', { roomId, reason: 'time_limit' });
-            }}
+            onTimeUp={handleTimeLimitEnd}
           />
 
           {leaderNickname && (
@@ -268,67 +271,19 @@ export default function MultiplayerGame() {
         </div>
       )}
 
-      {/* Game over modal */}
-      {gameResult && (
-        <div className="fixed inset-0 bg-[var(--bg-terminal)]/95 flex items-center justify-center z-50">
-          <div className="terminal-panel p-8 text-center max-w-md">
-            <h2 className="text-[var(--terminal-green)] text-2xl font-mono font-bold mb-4 text-glow">
-              KONIEC GRY
-            </h2>
-
-            <div className="mb-6">
-              <p className="text-[var(--terminal-gray)] font-mono text-sm mb-2">
-                ZWYCIĘZCA:
-              </p>
-              <p className="text-[var(--terminal-green)] font-mono text-xl font-bold">
-                {gameResult.winner}
-              </p>
-              <p className="text-[var(--terminal-gray)] font-mono text-xs mt-2">
-                {gameResult.reason}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-6 text-sm font-mono">
-              <div className="terminal-panel p-3">
-                <div className="text-[var(--terminal-gray)]">TY</div>
-                <div className="text-[var(--terminal-green)]">{gameState.score}</div>
-              </div>
-              <div className="terminal-panel p-3">
-                <div className="text-[var(--terminal-gray)]">PRZECIWNIK</div>
-                <div className="text-[var(--terminal-green)]">{opponentState?.score || 0}</div>
-              </div>
-            </div>
-
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => router.push('/queue')}
-                className="terminal-button"
-              >
-                KOLEJNA GRA
-              </button>
-              <button
-                onClick={handleExitGame}
-                className="terminal-button"
-              >
-                WYJDŹ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Game End Modal - New Better Modal */}
+      {/* Game End Modal */}
       {gameEndData && (
         <GameEndModal
           winner={gameEndData.winner}
           reason={gameEndData.reason}
           playerNickname={nickname}
-          playerScore={gameState.score}
-          playerLines={gameState.lines}
-          playerLevel={gameState.level}
-          opponentScore={opponentState?.score || 0}
-          opponentLines={opponentState?.lines || 0}
-          opponentLevel={opponentState?.level || 0}
+          playerScore={finalPlayerScore}
+          playerLines={finalPlayerLines}
+          playerLevel={finalPlayerLevel}
+          opponentScore={finalOpponentScore}
+          opponentLines={finalOpponentLines}
+          opponentLevel={finalOpponentLevel}
+          opponentNickname={opponentNickname}
           onRematchRequest={handleRematchRequest}
           onReturnToLobby={handleReturnToLobby}
           rematchRequest={rematchRequest}
@@ -337,6 +292,7 @@ export default function MultiplayerGame() {
           onRematchReject={handleRematchReject}
           waitingForRematchResponse={waitingForRematchResponse}
           rematchWaitTimeout={rematchWaitTimeout}
+          loser={gameEndData.loser}
         />
       )}
 

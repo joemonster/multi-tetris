@@ -24,6 +24,39 @@ interface GameEndModalProps {
   onRematchReject?: () => void;
   waitingForRematchResponse?: boolean;
   rematchWaitTimeout?: number;
+  loser?: string; // Optional loser nickname from server
+}
+
+// Function to personalize the reason message based on whether player is winner or loser
+function personalizeReason(reason: string, winner: string, playerNickname: string, loser?: string): string {
+  // Compare nicknames case-insensitively and trim whitespace
+  const normalizedWinner = winner?.trim().toLowerCase();
+  const normalizedPlayerNickname = playerNickname?.trim().toLowerCase();
+  const isWinner = normalizedWinner === normalizedPlayerNickname;
+  
+  // If reason contains "przegrał przed czasem", personalize it
+  if (reason.includes('przegrał przed czasem')) {
+    if (isWinner) {
+      // Player is winner - "GR2, wygrałeś, bo GR1 przegrał przed czasem..."
+      const loserName = loser || reason.split(' ')[0]; // Extract loser name from reason
+      // Extract score part if exists
+      const scorePart = reason.includes('(') ? reason.substring(reason.indexOf('(')) : '';
+      return `${playerNickname}, wygrałeś, bo ${loserName} przegrał przed czasem${scorePart}`;
+    } else {
+      // Player is loser - "GR1, przegrałeś przed czasem..."
+      const scorePart = reason.includes('(') ? reason.substring(reason.indexOf('(')) : '';
+      return `${playerNickname}, przegrałeś przed czasem${scorePart}`;
+    }
+  }
+  
+  // For other reasons (time limit, etc.), personalize them
+  if (isWinner) {
+    // Player won - "GR2, wygrałeś - Limit czasu..."
+    return `${playerNickname}, wygrałeś - ${reason}`;
+  } else {
+    // Player lost - "GR1, przegrałeś - Limit czasu..."
+    return `${playerNickname}, przegrałeś - ${reason}`;
+  }
 }
 
 export function GameEndModal({
@@ -36,6 +69,7 @@ export function GameEndModal({
   opponentScore,
   opponentLines,
   opponentLevel,
+  opponentNickname,
   onRematchRequest,
   onReturnToLobby,
   rematchRequest,
@@ -44,8 +78,17 @@ export function GameEndModal({
   onRematchReject,
   waitingForRematchResponse,
   rematchWaitTimeout,
+  loser,
 }: GameEndModalProps) {
-  const isWinner = winner === playerNickname;
+  // Compare nicknames case-insensitively and trim whitespace
+  const normalizedWinner = winner?.trim().toLowerCase();
+  const normalizedPlayerNickname = playerNickname?.trim().toLowerCase();
+  const isWinner = normalizedWinner === normalizedPlayerNickname;
+  
+  const personalizedReason = personalizeReason(reason, winner, playerNickname, loser);
+  
+  // Determine opponent display name - use opponentNickname if available, otherwise use winner/loser logic
+  const opponentDisplayName = opponentNickname || (isWinner ? loser : winner) || winner;
 
   return (
     <div className="fixed inset-0 bg-[var(--bg-terminal)]/95 flex items-center justify-center z-50">
@@ -54,11 +97,11 @@ export function GameEndModal({
         <h2 className={`text-3xl font-mono font-bold mb-4 text-glow ${
           isWinner ? 'text-[var(--terminal-green)]' : 'text-[var(--terminal-orange)]'
         }`}>
-          {isWinner ? '🏆 ZWYCIĘSTWO!' : '💀 PORAŻKA'}
+          {isWinner ? '🏆 SUKCES!' : '💀 PORAŻKA'}
         </h2>
 
         <p className="text-[var(--terminal-gray)] font-mono text-sm mb-6">
-          {reason}
+          {personalizedReason}
         </p>
 
         {/* Stats Comparison */}
@@ -97,7 +140,7 @@ export function GameEndModal({
             <div className={`text-lg font-mono font-bold mb-3 ${
               !isWinner ? 'text-[var(--terminal-green)]' : 'text-[var(--terminal-gray)]'
             }`}>
-              {winner}
+              {opponentDisplayName}
               {!isWinner && ' 👑'}
             </div>
             <div className="space-y-2 text-sm font-mono">

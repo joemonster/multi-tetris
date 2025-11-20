@@ -53,13 +53,13 @@ export default function QueuePage() {
   };
 
   // Handle game start
-  const handleGameStart = () => {
+  const handleGameStart = React.useCallback(() => {
     if (matchData) {
       // Save opponent nickname for game page
       localStorage.setItem('tetris_opponent', matchData.opponent);
       router.push(`/game/${matchData.roomId}`);
     }
-  };
+  }, [matchData, router]);
 
   // Handle retry
   const handleRetry = () => {

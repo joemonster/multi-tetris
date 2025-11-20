@@ -109,29 +109,63 @@ export const NextPiece: React.FC<NextPieceProps> = React.memo(({ pieceType }) =>
     }
   };
 
+  // Fixed grid size: 4 columns (widest piece is I-piece 4x1) x 4 rows (max height)
+  const GRID_COLS = 4;
+  const GRID_ROWS = 4;
+  
+  // Calculate offset to center the piece in the fixed grid
+  const pieceWidth = trimmedShape[0]?.length || 1;
+  const pieceHeight = trimmedShape.length || 1;
+  const offsetX = Math.floor((GRID_COLS - pieceWidth) / 2);
+  const offsetY = Math.floor((GRID_ROWS - pieceHeight) / 2);
+
+  // Block size based on screen size
+  const blockSize = themeId === 'brutalist' ? 20 : 16;
+  const blockSizeSm = themeId === 'brutalist' ? 20 : 20;
+
   return (
     <div className={getContainerClass()}>
       <h3 className={getTitleClass()}>
-        {themeId === 'brutalist' ? 'NEXT' : 'Next'}
+        NASTĘPNY
       </h3>
-      <div className="flex items-center justify-center min-h-[80px]">
+      <div className="flex items-center justify-center" style={{ minHeight: `${GRID_ROWS * blockSize + (GRID_ROWS - 1) * 2}px` }}>
         <div
           className="grid gap-[2px]"
           style={{
-            gridTemplateColumns: `repeat(${trimmedShape[0]?.length || 1}, 1fr)`,
+            gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`,
+            gridTemplateRows: `repeat(${GRID_ROWS}, 1fr)`,
+            width: `${GRID_COLS * blockSize + (GRID_COLS - 1) * 2}px`,
+            height: `${GRID_ROWS * blockSize + (GRID_ROWS - 1) * 2}px`,
           }}
         >
-          {trimmedShape.map((row, y) =>
-            row.map((cell, x) => (
-              <div
-                key={`${y}-${x}`}
-                className={`
-                  w-4 h-4 sm:w-5 sm:h-5
-                  ${cell ? '' : 'bg-transparent'}
-                `}
-                style={getBlockStyle(!!cell)}
-              />
-            ))
+          {/* Render fixed grid cells */}
+          {Array.from({ length: GRID_ROWS }).map((_, gridY) =>
+            Array.from({ length: GRID_COLS }).map((_, gridX) => {
+              // Calculate position in trimmed shape
+              const shapeX = gridX - offsetX;
+              const shapeY = gridY - offsetY;
+              
+              // Check if this grid cell should show a piece block
+              const isInBounds = 
+                shapeY >= 0 && 
+                shapeY < trimmedShape.length &&
+                shapeX >= 0 && 
+                shapeX < trimmedShape[shapeY]?.length;
+              
+              const cell = isInBounds ? trimmedShape[shapeY][shapeX] : false;
+              
+              return (
+                <div
+                  key={`${gridY}-${gridX}`}
+                  className="bg-transparent"
+                  style={{
+                    width: `${blockSize}px`,
+                    height: `${blockSize}px`,
+                    ...getBlockStyle(!!cell),
+                  }}
+                />
+              );
+            })
           )}
         </div>
       </div>

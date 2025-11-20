@@ -437,6 +437,25 @@ export const useGameLogic = () => {
     setTimeout(spawnPiece, 100);
   }, [spawnPiece]);
 
+  // End game (stop playing but keep state)
+  const endGame = useCallback(() => {
+    if (gameLoopRef.current) {
+      clearInterval(gameLoopRef.current as unknown as NodeJS.Timeout);
+      gameLoopRef.current = null;
+    }
+    // Clear lock timer
+    if (lockTimerRef.current) {
+      clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = null;
+    }
+    setGameState(prev => ({
+      ...prev,
+      gameOver: true,
+      isPlaying: false,
+      currentPiece: null,
+    }));
+  }, []);
+
   // Reset game
   const resetGame = useCallback(() => {
     if (gameLoopRef.current) {
@@ -506,6 +525,7 @@ export const useGameLogic = () => {
       togglePause,
       startGame,
       resetGame,
+      endGame,
     },
   };
 };

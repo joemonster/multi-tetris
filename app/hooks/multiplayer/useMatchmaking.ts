@@ -44,8 +44,9 @@ export function useMatchmaking() {
 
     const handleMatchFound = (data: MatchFoundData) => {
       setState('found');
-      // Use local time to avoid clock skew
-      setMatchData({ ...data, matchFoundTime: Date.now() });
+      // Use server time if provided, otherwise use local time
+      const matchFoundTime = data.matchFoundTime || Date.now();
+      setMatchData({ ...data, matchFoundTime });
       addLog({
         type: 'event',
         title: `Match znaleziony! vs ${data.opponent}`,
