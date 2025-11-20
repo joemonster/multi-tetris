@@ -31,6 +31,7 @@ export interface OpponentState {
   lines: number;
   level: number;
   gameOver: boolean;
+  nickname: string; // Nickname of the player who sent this update
 }
 
 export interface GameUpdateData {
@@ -41,4 +42,5 @@ export interface GameUpdateData {
   lines: number;
   level: number;
   gameOver: boolean;
+  nickname: string; // Nickname of the player sending this update
 }
