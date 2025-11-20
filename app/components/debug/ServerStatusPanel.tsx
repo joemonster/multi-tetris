@@ -32,7 +32,7 @@ export function ServerStatusPanel() {
   };
 
   return (
-    <div className="w-80 bg-[var(--bg-terminal)] border-l border-[var(--terminal-green)] p-4 flex flex-col h-full overflow-hidden">
+    <div className="fixed right-0 top-0 w-80 h-screen bg-[var(--bg-terminal)] border-l border-[var(--terminal-green)] p-4 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="mb-4 pb-3 border-b border-[var(--terminal-green)]">
         <div className="text-[var(--terminal-green)] font-mono text-sm font-bold text-glow mb-2">

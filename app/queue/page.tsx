@@ -70,8 +70,8 @@ export default function QueuePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-row">
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-col items-center justify-center p-4">
+      <div className="flex flex-col items-center justify-center w-full">
       {/* Match found overlay */}
       {state === 'found' && matchData && (
         <MatchFound

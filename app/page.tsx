@@ -20,8 +20,8 @@ export default function LandingPage() {
   }, [setDebugOnlineCount]);
 
   return (
-    <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-row">
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-[var(--bg-terminal)] flex flex-col items-center justify-center p-4">
+      <div className="flex flex-col items-center justify-center w-full">
       {/* ASCII Art Logo */}
       <div className="terminal-panel p-6 mb-8 text-center">
         <pre className="text-[var(--terminal-green)] font-mono text-xs sm:text-sm leading-tight text-glow">
