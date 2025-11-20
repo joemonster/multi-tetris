@@ -1,14 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { NicknameInput } from './components/multiplayer/NicknameInput';
 import { ModeSelector } from './components/multiplayer/ModeSelector';
 import { useSocket } from './hooks/multiplayer/useSocket';
 import { ServerStatusPanel } from './components/debug/ServerStatusPanel';
 import { useDebug } from './contexts/DebugContext';
 
 export default function LandingPage() {
-  const [nickname, setNickname] = useState('');
   const [onlineCount, setOnlineCount] = useState(0);
   const { isConnected } = useSocket();
   const { setOnlineCount: setDebugOnlineCount } = useDebug();
@@ -39,13 +37,8 @@ export default function LandingPage() {
         </p>
       </div>
 
-      {/* Nickname Input */}
-      <div className="mb-8 w-full max-w-md">
-        <NicknameInput value={nickname} onChange={setNickname} />
-      </div>
-
       {/* Mode Selection */}
-      <ModeSelector nickname={nickname} />
+      <ModeSelector />
 
       {/* Quick links */}
       <div className="mt-8 flex gap-4">
