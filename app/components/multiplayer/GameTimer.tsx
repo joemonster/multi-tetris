@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface GameTimerProps {
   isRunning: boolean;
@@ -10,38 +10,41 @@ interface GameTimerProps {
 
 export function GameTimer({ isRunning, startTime, onTimeUpdate }: GameTimerProps) {
   const [elapsedTime, setElapsedTime] = useState(0);
+  const startTimeRef = useRef<number | undefined>(undefined);
+  const lastUpdateRef = useRef(0);
+
+  // Update ref when startTime changes
+  useEffect(() => {
+    if (startTime) {
+      startTimeRef.current = startTime;
+      // Reset last update when start time is received
+      lastUpdateRef.current = Date.now();
+    }
+  }, [startTime]);
 
   useEffect(() => {
-    if (!isRunning || !startTime) return;
+    if (!isRunning) return;
 
-    // Use requestAnimationFrame for smoother updates and to work when tab is not focused
-    let lastUpdate = Date.now();
+    // Start local timer even if startTime not yet received
+    let localStartTime = startTimeRef.current || Date.now();
+    let interval: NodeJS.Timeout;
 
     const updateTime = () => {
       const now = Date.now();
-      const elapsed = Math.floor((now - startTime) / 1000);
+      const elapsed = Math.floor((now - localStartTime) / 1000);
 
-      // Only update if time actually changed
-      if (elapsed !== Math.floor((lastUpdate - startTime) / 1000)) {
-        setElapsedTime(elapsed);
-        onTimeUpdate?.(elapsed);
-      }
-      lastUpdate = now;
+      setElapsedTime(elapsed);
+      onTimeUpdate?.(elapsed);
     };
 
     // Update immediately
     updateTime();
 
-    // Update on each animation frame
-    let animationId: number;
-    const tick = () => {
-      updateTime();
-      animationId = requestAnimationFrame(tick);
-    };
-    animationId = requestAnimationFrame(tick);
+    // Use setInterval (not RAF) - works even when tab is not focused
+    interval = setInterval(updateTime, 100);
 
-    return () => cancelAnimationFrame(animationId);
-  }, [isRunning, startTime, onTimeUpdate]);
+    return () => clearInterval(interval);
+  }, [isRunning, onTimeUpdate]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

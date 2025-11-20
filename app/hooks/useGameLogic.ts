@@ -353,35 +353,36 @@ export const useGameLogic = () => {
     }));
   }, []);
 
-  // Game loop
+  // Game loop - use setInterval instead of RAF so it works even when tab is not focused
   useEffect(() => {
     if (!gameState.isPlaying || gameState.isPaused || gameState.gameOver) {
       if (gameLoopRef.current) {
-        cancelAnimationFrame(gameLoopRef.current);
+        clearInterval(gameLoopRef.current as unknown as NodeJS.Timeout);
         gameLoopRef.current = null;
       }
       return;
     }
 
     const speed = calculateSpeed(gameState.level);
-    // Initialize with current time to handle tab becoming inactive
     lastTickRef.current = Date.now();
 
-    const gameLoop = () => {
+    // Use setInterval with smaller tick to ensure smooth gameplay
+    // Check on each interval if enough time has passed for next move
+    const intervalId = setInterval(() => {
       const now = Date.now();
       if (now - lastTickRef.current >= speed) {
         moveDown();
         checkLock();
         lastTickRef.current = now;
       }
-      gameLoopRef.current = requestAnimationFrame(gameLoop);
-    };
+    }, Math.max(10, speed / 2)); // Check frequently but not too frequently
 
-    gameLoopRef.current = requestAnimationFrame(gameLoop);
+    gameLoopRef.current = intervalId as unknown as number;
 
     return () => {
       if (gameLoopRef.current) {
-        cancelAnimationFrame(gameLoopRef.current);
+        clearInterval(gameLoopRef.current as unknown as NodeJS.Timeout);
+        gameLoopRef.current = null;
       }
     };
   }, [gameState.isPlaying, gameState.isPaused, gameState.gameOver, gameState.level, moveDown, checkLock]);
