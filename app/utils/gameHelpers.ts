@@ -1,6 +1,5 @@
 import {
   Board,
-  Cell,
   CurrentPiece,
   Position,
   Shape,
