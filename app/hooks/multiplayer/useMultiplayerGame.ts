@@ -24,6 +24,9 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
   const [gameResult, setGameResult] = useState<{ winner: string; reason: string } | null>(null);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameStartTime, setGameStartTime] = useState<number | undefined>();
+  const [gameEndData, setGameEndData] = useState<{ winner: string; reason: string; roomId: string } | null>(null);
+  const [rematchRequest, setRematchRequest] = useState<{ playerId: string; playerNickname: string } | null>(null);
+  const [rematchTimeout, setRematchTimeout] = useState<number>(10);
 
   // Load opponent nickname from localStorage on mount
   useEffect(() => {
@@ -147,11 +150,22 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       }
     };
 
+    const handleGameEnd = (data: { winner: string; reason: string; roomId: string }) => {
+      setGameEndData(data);
+      addLog({
+        type: 'event',
+        title: `Koniec gry - ${data.winner} wygrywa`,
+        data: { reason: data.reason },
+        color: 'orange',
+      });
+    };
+
     on('opponent_update', handleOpponentUpdate);
     on('opponent_disconnected', handleOpponentDisconnected);
     on('opponent_reconnected', handleOpponentReconnected);
     on('game_over', handleGameOver);
     on('game_start', handleGameStart);
+    on('game_end', handleGameEnd);
 
     return () => {
       off('opponent_update');
@@ -159,6 +173,7 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
       off('opponent_reconnected');
       off('game_over');
       off('game_start');
+      off('game_end');
     };
   }, [socket, on, off, gameLogic.actions, gameStarted, addLog]);
 
@@ -210,5 +225,10 @@ export function useMultiplayerGame({ roomId, nickname }: UseMultiplayerGameProps
 
     // Socket communication
     emit,
+
+    // Game end state
+    gameEndData,
+    rematchRequest,
+    rematchTimeout,
   };
 }
